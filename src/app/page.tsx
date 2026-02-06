@@ -3,6 +3,7 @@ import Contact from '@/components/contact';
 import Gallery from '@/components/gallery';
 import Hero from '@/components/hero';
 import Header from '@/components/layout/header';
+import Testimonials from '@/components/testimonials';
 
 export default function Home() {
   return (
@@ -11,6 +12,7 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <Gallery />
+        <Testimonials />
         <Contact />
       </main>
       <Chatbot />

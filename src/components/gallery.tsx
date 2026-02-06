@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ArrowLeft, ArrowRight, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import Testimonials from './testimonials';
 
 const CarouselInstance = ({
   images,
@@ -116,7 +115,7 @@ export default function Gallery() {
   const secondRowImages = allImages.slice(midIndex);
 
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32 bg-background">
+    <section id="gallery" className="w-full py-12 md:py-24 lg:py-32 bg-background">
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="mb-8 w-full">
@@ -147,7 +146,6 @@ export default function Gallery() {
           <CarouselInstance images={secondRowImages} options={{ loop: true, direction: 'rtl' }} />
         </div>
       </div>
-      <Testimonials/>
     </section>
   );
 }
