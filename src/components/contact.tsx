@@ -12,17 +12,17 @@ export default function Contact() {
             </p>
         </div>
         <div className="mx-auto mt-12 grid max-w-sm gap-8 lg:max-w-4xl lg:grid-cols-2 lg:gap-12">
-            <a href="tel:555-555-5555" className="group">
+            <a href="tel:208-831-6824" className="group">
                 <Card className="h-full transition-all group-hover:shadow-lg group-hover:-translate-y-1">
                     <CardHeader className="flex flex-row items-center gap-4 pb-2">
                         <div className="bg-primary/20 p-3 rounded-full">
-                            <Phone className="h-6 w-6 text-primary-foreground" />
+                            <Phone className="h-6 w-6 text-primary" />
                         </div>
                         <CardTitle>Phone</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground">Give us a call for a free estimate.</p>
-                        <p className="mt-2 text-lg font-semibold">(555) 555-5555</p>
+                        <p className="mt-2 text-lg font-semibold">(208) 831-6824</p>
                     </CardContent>
                 </Card>
             </a>
@@ -30,7 +30,7 @@ export default function Contact() {
                 <Card className="h-full transition-all group-hover:shadow-lg group-hover:-translate-y-1">
                     <CardHeader className="flex flex-row items-center gap-4 pb-2">
                          <div className="bg-primary/20 p-3 rounded-full">
-                            <Mail className="h-6 w-6 text-primary-foreground" />
+                            <Mail className="h-6 w-6 text-primary" />
                         </div>
                         <CardTitle>Email</CardTitle>
                     </CardHeader>
