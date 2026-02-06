@@ -17,10 +17,10 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
       </g>
       <text
         x="25"
-        y="65"
+        y="55"
         fontFamily="sans-serif"
-        fontSize="36"
-        fontWeight="bold"
+        fontSize="44"
+        fontWeight="500"
         fill="black"
         textAnchor="middle"
         dominantBaseline="middle"
@@ -28,11 +28,10 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
         R
       </text>
       <text
-        x="38"
-        y="82"
-        fontFamily="sans-serif"
-        fontSize="22"
-        fontWeight="bold"
+        x="28"
+        y="80"
+        fontFamily="serif"
+        fontSize="26"
         fill="black"
         textAnchor="middle"
         dominantBaseline="middle"
@@ -41,10 +40,10 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
       </text>
       <text
         x="75"
-        y="65"
+        y="55"
         fontFamily="sans-serif"
-        fontSize="42"
-        fontWeight="bold"
+        fontSize="44"
+        fontWeight="500"
         fill="black"
         textAnchor="middle"
         dominantBaseline="middle"
