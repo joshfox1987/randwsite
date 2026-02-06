@@ -5,14 +5,16 @@ import type { EmblaCarouselType, EmblaOptionsType } from 'embla-carousel-react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ArrowLeft, ArrowRight, Upload } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Upload, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { enhanceUploadedImage } from '@/app/actions';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const CarouselInstance = ({
   images,
   options,
 }: {
-  images: { id: string; imageUrl: string; description: string, imageHint: string }[];
+  images: { id: string; imageUrl: string; description: string; imageHint: string; isLoading?: boolean }[];
   options?: EmblaOptionsType;
 }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel(options);
@@ -49,15 +51,22 @@ const CarouselInstance = ({
           {images.map((img) => (
             <div className="relative flex-[0_0_100%] sm:flex-[0_0_50%] md:flex-[0_0_33.33%] lg:flex-[0_0_25%] p-2" key={img.id}>
               <div className="aspect-video w-full overflow-hidden rounded-lg shadow-lg">
-                <Image
-                  src={img.imageUrl}
-                  alt={img.description}
-                  width={800}
-                  height={600}
-                  data-ai-hint={img.imageHint}
-                  className="h-full w-full object-cover transition-transform duration-300 ease-in-out hover:scale-105"
-                  style={{ filter: 'contrast(1.1) saturate(1.1) brightness(1.05)' }}
-                />
+                {img.isLoading ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-muted">
+                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                     <p className="mt-2 text-sm text-muted-foreground">Enhancing image...</p>
+                  </div>
+                ) : (
+                  <Image
+                    src={img.imageUrl}
+                    alt={img.description}
+                    width={800}
+                    height={600}
+                    data-ai-hint={img.imageHint}
+                    className="h-full w-full object-cover transition-transform duration-300 ease-in-out hover:scale-105"
+                    style={{ filter: 'contrast(1.1) saturate(1.1) brightness(1.05)' }}
+                  />
+                )}
               </div>
             </div>
           ))}
@@ -86,8 +95,9 @@ const CarouselInstance = ({
 };
 
 export default function Gallery() {
-  const [allImages, setAllImages] = useState(PlaceHolderImages);
+  const [allImages, setAllImages] = useState<(typeof PlaceHolderImages[0] & { isLoading?: boolean })[]>(PlaceHolderImages);
   const inputFileRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleUploadClick = () => {
     inputFileRef.current?.click();
@@ -95,17 +105,49 @@ export default function Gallery() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (file && !isUploading) {
+      setIsUploading(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const newImage = {
-          id: `uploaded-${Date.now()}`,
-          imageUrl: reader.result as string,
-          description: file.name,
-          imageHint: 'uploaded image'
+      const tempId = `uploading-${Date.now()}`;
+
+      reader.onloadstart = () => {
+         const placeholderImage = {
+          id: tempId,
+          imageUrl: '',
+          description: 'Enhancing image...',
+          imageHint: 'enhancing',
+          isLoading: true,
         };
-        setAllImages((prev) => [newImage, ...prev]);
+        setAllImages((prev) => [placeholderImage, ...prev]);
+      }
+
+      reader.onloadend = async () => {
+        const originalDataUrl = reader.result as string;
+        try {
+          const enhancedDataUrl = await enhanceUploadedImage(originalDataUrl);
+          const newImage = {
+            id: `uploaded-${Date.now()}`,
+            imageUrl: enhancedDataUrl,
+            description: file.name,
+            imageHint: 'uploaded image',
+            isLoading: false,
+          };
+          setAllImages((prev) =>
+            prev.map((img) => (img.id === tempId ? newImage : img))
+          );
+        } catch (error) {
+          console.error('Failed to enhance image:', error);
+          // On error, remove the placeholder
+          setAllImages((prev) => prev.filter((img) => img.id !== tempId));
+        } finally {
+           setIsUploading(false);
+           // Reset file input
+           if(inputFileRef.current) {
+             inputFileRef.current.value = '';
+           }
+        }
       };
+
       reader.readAsDataURL(file);
     }
   };
@@ -127,9 +169,14 @@ export default function Gallery() {
                 variant="outline"
                 className="absolute right-0 top-1/2 -translate-y-1/2"
                 onClick={handleUploadClick}
+                disabled={isUploading}
               >
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Photo
+                {isUploading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {isUploading ? 'Enhancing...' : 'Upload Photo'}
               </Button>
               <input
                 type="file"
@@ -137,6 +184,7 @@ export default function Gallery() {
                 onChange={handleFileChange}
                 className="hidden"
                 accept="image/*"
+                disabled={isUploading}
               />
             </div>
           </div>

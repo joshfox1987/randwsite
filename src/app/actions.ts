@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { collectLeadInformation } from '@/ai/flows/ai-chatbot-lead-collection';
 import type { CollectLeadInformationOutput } from '@/ai/flows/ai-chatbot-lead-collection';
+import { enhanceImage } from '@/ai/flows/enhance-image-flow';
 
 const reviewSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -31,4 +32,13 @@ export async function sendChatMessage(
   const query = history.map(h => `${h.role}: ${h.text}`).join('\n');
   const aiResponse = await collectLeadInformation({ query });
   return aiResponse;
+}
+
+export async function enhanceUploadedImage(dataUri: string): Promise<string> {
+  const result = await enhanceImage({
+    photoDataUri: dataUri,
+    prompt:
+      'Enhance this image to look more professional. Improve lighting, colors, and focus on the people working. Make it look like a high-quality photograph for a company website.',
+  });
+  return result.enhancedPhotoDataUri;
 }
