@@ -8,7 +8,7 @@ export default function Header() {
           <a href="/" className="flex items-center gap-2">
             <Logo className="h-8 w-8" />
             <span className="font-headline text-lg font-bold text-foreground">
-              R & W Property Solutions
+              Property Solutions
             </span>
           </a>
         </div>
