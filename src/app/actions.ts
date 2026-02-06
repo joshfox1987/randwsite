@@ -38,7 +38,7 @@ export async function enhanceUploadedImage(dataUri: string): Promise<string> {
   const result = await enhanceImage({
     photoDataUri: dataUri,
     prompt:
-      'Enhance this image to look more professional. Improve lighting, colors, and focus on the people working. Make it look like a high-quality photograph for a company website.',
+      'Enhance this image to look more professional by improving lighting, colors, and overall quality. Clean up any minor imperfections like scratches or blemishes. The result should be a high-quality photograph suitable for a company website.',
   });
   return result.enhancedPhotoDataUri;
 }

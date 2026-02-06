@@ -4,7 +4,7 @@ import Image from 'next/image';
 import type { EmblaCarouselType, EmblaOptionsType } from 'embla-carousel-react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Button } from '@/components/ui/button';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { PlaceHolderImages, type ImagePlaceholder } from '@/lib/placeholder-images';
 import { ArrowLeft, ArrowRight, Upload, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { enhanceUploadedImage } from '@/app/actions';
@@ -94,10 +94,39 @@ const CarouselInstance = ({
   );
 };
 
+const LOCAL_STORAGE_KEY = 'rw-property-gallery-images';
+
 export default function Gallery() {
-  const [allImages, setAllImages] = useState<(typeof PlaceHolderImages[0] & { isLoading?: boolean })[]>(PlaceHolderImages);
+  const [allImages, setAllImages] = useState<(ImagePlaceholder & { isLoading?: boolean })[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
   const inputFileRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+    try {
+      const storedImages = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (storedImages) {
+        setAllImages(JSON.parse(storedImages));
+      } else {
+        setAllImages(PlaceHolderImages);
+      }
+    } catch (e) {
+      console.error('Could not load images from local storage', e);
+      setAllImages(PlaceHolderImages);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isHydrated) {
+      try {
+        const imagesToSave = allImages.filter(img => !img.isLoading);
+        window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(imagesToSave));
+      } catch (e) {
+        console.error('Could not save images to local storage', e);
+      }
+    }
+  }, [allImages, isHydrated]);
 
   const handleUploadClick = () => {
     inputFileRef.current?.click();
@@ -125,15 +154,14 @@ export default function Gallery() {
         const originalDataUrl = reader.result as string;
         try {
           const enhancedDataUrl = await enhanceUploadedImage(originalDataUrl);
-          const newImage = {
+          const newImage: ImagePlaceholder = {
             id: `uploaded-${Date.now()}`,
             imageUrl: enhancedDataUrl,
             description: file.name,
             imageHint: 'uploaded image',
-            isLoading: false,
           };
           setAllImages((prev) =>
-            prev.map((img) => (img.id === tempId ? newImage : img))
+            prev.map((img) => (img.id === tempId ? { ...newImage, isLoading: false } : img))
           );
         } catch (error) {
           console.error('Failed to enhance image:', error);
@@ -155,6 +183,40 @@ export default function Gallery() {
   const midIndex = Math.ceil(allImages.length / 2);
   const firstRowImages = allImages.slice(0, midIndex);
   const secondRowImages = allImages.slice(midIndex);
+
+  if (!isHydrated) {
+    return (
+        <section id="gallery" className="w-full py-12 md:py-24 lg:py-32 bg-background">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="mb-8 w-full">
+                 <div className="relative flex items-center justify-center">
+                    <h2 className="font-headline text-3xl font-bold tracking-tighter sm:text-5xl">
+                        Check out our gallery
+                    </h2>
+                 </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-4">
+                <div className="flex">
+                    {[...Array(4)].map((_, i) => (
+                        <div className="relative flex-[0_0_100%] sm:flex-[0_0_50%] md:flex-[0_0_33.33%] lg:flex-[0_0_25%] p-2" key={i}>
+                            <Skeleton className="aspect-video w-full rounded-lg" />
+                        </div>
+                    ))}
+                </div>
+                <div className="flex">
+                     {[...Array(4)].map((_, i) => (
+                        <div className="relative flex-[0_0_100%] sm:flex-[0_0_50%] md:flex-[0_0_33.33%] lg:flex-[0_0_25%] p-2" key={i}>
+                            <Skeleton className="aspect-video w-full rounded-lg" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+          </div>
+        </section>
+    );
+  }
 
   return (
     <section id="gallery" className="w-full py-12 md:py-24 lg:py-32 bg-background">
