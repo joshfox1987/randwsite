@@ -1,6 +1,6 @@
 'use server';
 
-import { initializeFirebase } from '@/firebase';
+import { initializeFirebase } from '@/firebase/init';
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc } from 'firebase/firestore';
 import { sendLeadNotificationSms } from './sms';
 
@@ -54,16 +54,11 @@ export async function incrementVisitorCount() {
     const docRef = doc(firestore, 'site_analytics', 'visitorCounter');
     
     try {
-        // Use updateDoc with increment, which is atomic.
-        // This will fail if the document doesn't exist, which is intended by the security rules.
+        // Use setDoc with merge to create or update the document.
+        // This handles the case where the document doesn't exist yet.
         await setDoc(docRef, { visitorCount: increment(1) }, { merge: true });
     } catch (error) {
-        // Check if the document does not exist to create it.
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists()) {
-            await setDoc(docRef, { visitorCount: 1 });
-        } else {
-             console.error("Error incrementing visitor count: ", error);
-        }
+        // This will now only catch other errors, like permission issues.
+        console.error("Error incrementing visitor count: ", error);
     }
 }
