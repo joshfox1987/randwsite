@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { getSiteAnalyticsTool } from '@/ai/tools/getSiteAnalytics';
 
 const CollectLeadInformationInputSchema = z.object({
   query: z.string().describe('The user query or message to the chatbot.'),
@@ -33,9 +34,12 @@ const leadCollectionPrompt = ai.definePrompt({
   name: 'leadCollectionPrompt',
   input: {schema: CollectLeadInformationInputSchema},
   output: {schema: CollectLeadInformationOutputSchema},
+  tools: [getSiteAnalyticsTool],
   prompt: `You are a helpful AI assistant for R & W Property Solutions. Your job is to answer basic questions about the company's repair and debris removal services and collect lead information from the user.
 
   If the user asks a question about the company or its services, answer it politely and accurately.
+
+  If the user asks about site statistics or visitor counts, use the provided tool to get the information.
 
   Politely ask for the following information from the user:
   - Name

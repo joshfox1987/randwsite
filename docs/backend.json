@@ -100,12 +100,28 @@
         }
       },
       "required": [
-        "id",
         "name",
         "phoneNumber",
         "serviceNeeded",
         "collectedAt"
       ]
+    },
+    "SiteAnalytics": {
+      "title": "SiteAnalytics",
+      "type": "object",
+      "description": "Stores analytics data for the website.",
+      "properties": {
+        "visitorCount": {
+          "type": "number",
+          "description": "Total number of page visitors."
+        }
+      },
+      "required": ["visitorCount"]
+    },
+    "user": {
+      "title": "user",
+      "type": "object",
+      "properties": {}
     }
   },
   "auth": {
@@ -165,9 +181,20 @@
         }
       },
       {
+        "path": "/site_analytics/visitorCounter",
+        "definition": {
+          "entityName": "SiteAnalytics",
+          "schema": {
+            "$ref": "#/backend/entities/SiteAnalytics"
+          },
+          "description": "A singleton document for tracking site-wide analytics like visitor counts.",
+          "params": []
+        }
+      },
+      {
         "path": "/roles_admin/{adminUid}",
         "definition": {
-          "entityName": "roles_admin",
+          "entityName": "user",
           "schema": {
             "$ref": "#/backend/entities/user"
           },
@@ -181,6 +208,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to be secure, scalable, and debuggable by strictly adhering to the core design principles. All data entities are placed in top-level collections to ensure Authorization Independence. This eliminates the need for hierarchical authorization dependencies (get() calls in security rules), which would otherwise break atomic operations and complicate debugging. For example, a `GalleryImage`'s permissions do not rely on any parent `User` document; instead, general admin roles determine write access.\n\nStructural Segregation is applied by having dedicated collections for `gallery_images`, `customer_reviews`, and `leads`. Each collection has a homogeneous security posture:\n\n*   `/gallery_images`: Publicly readable, admin-only writable.\n*   `/customer_reviews`: Publicly readable, publicly writable (for review submission).\n*   `/leads`: Private, admin-only readable and writable.\n\nThis segregation simplifies security rules significantly, as the rules for each collection are straightforward and do not need complex conditional logic based on document content or relationships.\n\n**Authorization Independence and QAPs (Query As Proofs) Explanation:**\n\n1.  **Authorization Independence:** All collections are top-level and self-contained regarding their authorization context. For instance, granting write access to a `GalleryImage` will not involve checking a `user` document for ownership or roles. Instead, it will check if `request.auth.uid` is present in the dedicated `/roles_admin` collection. This explicit separation means security rules are simpler (`allow write: if exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));`) and do not introduce performance bottlenecks or complexity related to document retrieval within rules.\n\n2.  **QAPs (Rules are not Filters):**\n    *   For `/gallery_images` and `/customer_reviews`, the intent is for all documents to be publicly viewable. Therefore, security rules for these collections will explicitly allow `list` operations for all users (`allow read: if true;`). This directly supports QAPs by ensuring that any client-side query on these collections will return the full, authorized set of data without needing client-side filtering.\n    *   For `/leads`, the intent is for only administrators to view this data. The security rule for this collection will permit `list` operations only if `request.auth.uid` is identified as an admin (`allow read: if exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));`). This ensures that unauthorized users cannot execute a `list` query and accidentally retrieve sensitive lead information, perfectly adhering to the QAP principle by preventing insecure queries from ever returning partial or filtered results."
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and debuggable by strictly adhering to the core design principles. All data entities are placed in top-level collections to ensure Authorization Independence. This eliminates the need for hierarchical authorization dependencies (get() calls in security rules), which would otherwise break atomic operations and complicate debugging. For example, a `GalleryImage`'s permissions do not rely on any parent `User` document; instead, general admin roles determine write access.\n\nStructural Segregation is applied by having dedicated collections for `gallery_images`, `customer_reviews`, `leads`, and `site_analytics`. Each collection has a homogeneous security posture:\n\n*   `/gallery_images`: Publicly readable, admin-only writable.\n*   `/customer_reviews`: Publicly readable, publicly writable (for review submission).\n*   `/leads`: Publicly creatable, but admin-only readable and writable.\n*   `/site_analytics`: Publicly updatable (for counters), but admin-only readable.\n\nThis segregation simplifies security rules significantly, as the rules for each collection are straightforward and do not need complex conditional logic based on document content or relationships."
   }
 }

@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 import { cn } from '@/lib/utils';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { AnonymousAuth } from '@/components/AnonymousAuth';
+import { VisitorTracker } from '@/components/VisitorTracker';
 
 export const metadata: Metadata = {
   title: 'R & W Property Solutions Hub',
@@ -24,7 +27,12 @@ export default function RootLayout({
         />
       </head>
       <body className={cn('font-body antialiased')}>
-        {children}
+        <FirebaseClientProvider>
+          <AnonymousAuth>
+            <VisitorTracker />
+            {children}
+          </AnonymousAuth>
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>

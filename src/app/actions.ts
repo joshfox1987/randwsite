@@ -1,10 +1,10 @@
-
 'use server';
 
 import { z } from 'zod';
 import { collectLeadInformation } from '@/ai/flows/ai-chatbot-lead-collection';
 import type { CollectLeadInformationOutput } from '@/ai/flows/ai-chatbot-lead-collection';
 import { enhanceImage } from '@/ai/flows/enhance-image-flow';
+import { saveLead } from '@/services/firestore';
 
 const reviewSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -31,6 +31,17 @@ export async function sendChatMessage(
 ): Promise<CollectLeadInformationOutput> {
   const query = history.map(h => `${h.role}: ${h.text}`).join('\n');
   const aiResponse = await collectLeadInformation({ query });
+
+  // If a lead was successfully collected, save it.
+  if (aiResponse.name && aiResponse.phoneNumber && aiResponse.serviceNeeded) {
+    await saveLead({
+        name: aiResponse.name,
+        phoneNumber: aiResponse.phoneNumber,
+        serviceNeeded: aiResponse.serviceNeeded,
+        preferredBidTime: aiResponse.preferredBidTime || '',
+    });
+  }
+
   return aiResponse;
 }
 
