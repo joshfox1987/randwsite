@@ -15,6 +15,12 @@ const services = [
     'Water Damage Repair',
     "Saving your cat from the neighbor's tree",
     'Fence Line Installation and Repair',
+    'Carpet Cleaning & Installation',
+    'Drywall Repair',
+    'Painting',
+    'Pressure Washing',
+    'Demolition Services',
+    'Mold Remediation',
     'And so much more...',
 ];
 
