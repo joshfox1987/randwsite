@@ -1,0 +1,111 @@
+/**
+ * Core Philosophy: This ruleset implements a Database-Backed Access Control (DBAC) model
+ * using a dedicated `/roles_admin` collection to manage administrator privileges. The core
+ * design emphasizes structural segregation, where different types of data are stored in
+ * separate top-level collections, each with a distinct and uniform security posture.
+ *
+ * Data Structure: All data entities (`gallery_images`, `customer_reviews`, `leads`) exist
+ * in their own top-level collections. There are no nested user subcollections, which
+ * simplifies authorization logic and improves performance by avoiding cross-document `get()`
+ * calls for permission checks.
+ *
+ * Key Security Decisions:
+ * - Administrator roles are centrally managed in the `/roles_admin` collection. A user is an
+ *   admin if a document with their UID exists in this collection.
+ * - Client-side modification of the `/roles_admin` collection is explicitly forbidden to
+ *   prevent users from escalating their own privileges.
+ * - Public data (`gallery_images`, `customer_reviews`) is readable by everyone.
+ * - Sensitive data (`leads`) is strictly confined to administrators.
+ * - Anonymous users are permitted to create new customer reviews, but cannot modify or
+ *   delete existing ones.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================================================================
+    // Helper Functions
+    // =====================================================================
+
+    /**
+     * Checks if the requesting user is an administrator.
+     * Admin status is determined by the existence of a document in the /roles_admin
+     * collection where the document ID matches the user's Auth UID.
+     */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    // =====================================================================
+    // Collection Rules
+    // =====================================================================
+
+    /**
+     * @description Publicly readable gallery images, writable only by administrators.
+     * @path /gallery_images/{galleryImageId}
+     * @allow (get) Any user, signed-in or not, can read a gallery image.
+     * @allow (create) An authenticated admin can create a new gallery image document.
+     * @deny (update) A non-admin user cannot update an existing gallery image.
+     * @principle Separates public read access from privileged write access using a role-based check.
+     */
+    match /gallery_images/{galleryImageId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Publicly readable customer reviews. Anyone can submit a new review,
+     *              but only admins can modify or delete existing ones to prevent tampering.
+     * @path /customer_reviews/{customerReviewId}
+     * @allow (get) Any user, signed-in or not, can read a customer review.
+     * @allow (create) An anonymous user can create a new customer review document.
+     * @deny (delete) A regular signed-in user cannot delete someone else's review.
+     * @principle Allows public write for initial creation while protecting existing data from modification.
+     */
+    match /customer_reviews/{customerReviewId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if true;
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Contains sensitive lead information. All access is restricted
+     *              to authenticated administrators.
+     * @path /leads/{leadId}
+     * @allow (get) An authenticated admin can read a specific lead document.
+     * @allow (list) An authenticated admin can list all lead documents.
+     * @deny (get) A non-admin user cannot read any lead information.
+     * @deny (list) A non-admin user cannot query the leads collection.
+     * @principle Enforces strict confidentiality by locking down a collection to a specific role.
+     */
+    match /leads/{leadId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description A control collection for managing admin roles. Readable by other admins,
+     *              but cannot be written to from the client to prevent privilege escalation.
+     * @path /roles_admin/{adminUid}
+     * @allow (get) An admin can check if another user is an admin.
+     * @deny (create) No user, not even another admin, can create a new admin role from the client.
+     * @deny (delete) An admin cannot remove another admin's role from the client.
+     * @principle Prevents client-side privilege escalation by making the roles collection immutable.
+     */
+    match /roles_admin/{adminUid} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

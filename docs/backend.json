@@ -1,0 +1,186 @@
+{
+  "entities": {
+    "GalleryImage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GalleryImage",
+      "type": "object",
+      "description": "Represents metadata for an image displayed in the company's interactive gallery.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GalleryImage entity."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "The URL to the actual image file stored in Firebase Storage.",
+          "format": "uri"
+        },
+        "description": {
+          "type": "string",
+          "description": "An optional description or caption for the image."
+        },
+        "uploadedAt": {
+          "type": "string",
+          "description": "The date and time when the image was uploaded.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "imageUrl",
+        "uploadedAt"
+      ]
+    },
+    "CustomerReview": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerReview",
+      "type": "object",
+      "description": "Stores a customer's testimonial or review about R & W Property Solutions' services.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CustomerReview entity."
+        },
+        "reviewerName": {
+          "type": "string",
+          "description": "The name of the customer who submitted the review."
+        },
+        "rating": {
+          "type": "number",
+          "description": "The star rating given by the customer (1-5)."
+        },
+        "comment": {
+          "type": "string",
+          "description": "The textual feedback or comment provided by the customer."
+        },
+        "submittedAt": {
+          "type": "string",
+          "description": "The date and time when the review was submitted.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "reviewerName",
+        "rating",
+        "comment",
+        "submittedAt"
+      ]
+    },
+    "Lead": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Lead",
+      "type": "object",
+      "description": "Holds potential customer information collected via the AI Chatbot for follow-up.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Lead entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the interested individual."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The phone number of the lead for contact purposes."
+        },
+        "serviceNeeded": {
+          "type": "string",
+          "description": "A description of the service the lead is interested in."
+        },
+        "preferredBidTime": {
+          "type": "string",
+          "description": "The preferred date or time frame for receiving a bid or further contact."
+        },
+        "collectedAt": {
+          "type": "string",
+          "description": "The date and time when the lead information was collected.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "phoneNumber",
+        "serviceNeeded",
+        "collectedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/gallery_images/{galleryImageId}",
+        "definition": {
+          "entityName": "GalleryImage",
+          "schema": {
+            "$ref": "#/backend/entities/GalleryImage"
+          },
+          "description": "Stores metadata for all images displayed in the company's interactive gallery. All documents in this collection are publicly readable, and write access is restricted to administrators.",
+          "params": [
+            {
+              "name": "galleryImageId",
+              "description": "The unique identifier for a specific gallery image document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customer_reviews/{customerReviewId}",
+        "definition": {
+          "entityName": "CustomerReview",
+          "schema": {
+            "$ref": "#/backend/entities/CustomerReview"
+          },
+          "description": "Holds customer testimonials and reviews. All documents are publicly readable, and anonymous users can create new reviews via the submission form.",
+          "params": [
+            {
+              "name": "customerReviewId",
+              "description": "The unique identifier for a specific customer review document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/leads/{leadId}",
+        "definition": {
+          "entityName": "Lead",
+          "schema": {
+            "$ref": "#/backend/entities/Lead"
+          },
+          "description": "Contains sensitive information about potential customers collected via the AI Chatbot. Access (read/write) to this collection is strictly limited to authenticated administrators.",
+          "params": [
+            {
+              "name": "leadId",
+              "description": "The unique identifier for a specific lead document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{adminUid}",
+        "definition": {
+          "entityName": "roles_admin",
+          "schema": {
+            "$ref": "#/backend/entities/user"
+          },
+          "description": "A control collection used for Database-Backed Access Control (DBAC). Each document in this collection represents an administrator, where the document ID is the user's Firebase Authentication UID. Used to grant elevated permissions to specific users.",
+          "params": [
+            {
+              "name": "adminUid",
+              "description": "The Firebase Authentication UID of an administrator."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and debuggable by strictly adhering to the core design principles. All data entities are placed in top-level collections to ensure Authorization Independence. This eliminates the need for hierarchical authorization dependencies (get() calls in security rules), which would otherwise break atomic operations and complicate debugging. For example, a `GalleryImage`'s permissions do not rely on any parent `User` document; instead, general admin roles determine write access.\n\nStructural Segregation is applied by having dedicated collections for `gallery_images`, `customer_reviews`, and `leads`. Each collection has a homogeneous security posture:\n\n*   `/gallery_images`: Publicly readable, admin-only writable.\n*   `/customer_reviews`: Publicly readable, publicly writable (for review submission).\n*   `/leads`: Private, admin-only readable and writable.\n\nThis segregation simplifies security rules significantly, as the rules for each collection are straightforward and do not need complex conditional logic based on document content or relationships.\n\n**Authorization Independence and QAPs (Query As Proofs) Explanation:**\n\n1.  **Authorization Independence:** All collections are top-level and self-contained regarding their authorization context. For instance, granting write access to a `GalleryImage` will not involve checking a `user` document for ownership or roles. Instead, it will check if `request.auth.uid` is present in the dedicated `/roles_admin` collection. This explicit separation means security rules are simpler (`allow write: if exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));`) and do not introduce performance bottlenecks or complexity related to document retrieval within rules.\n\n2.  **QAPs (Rules are not Filters):**\n    *   For `/gallery_images` and `/customer_reviews`, the intent is for all documents to be publicly viewable. Therefore, security rules for these collections will explicitly allow `list` operations for all users (`allow read: if true;`). This directly supports QAPs by ensuring that any client-side query on these collections will return the full, authorized set of data without needing client-side filtering.\n    *   For `/leads`, the intent is for only administrators to view this data. The security rule for this collection will permit `list` operations only if `request.auth.uid` is identified as an admin (`allow read: if exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));`). This ensures that unauthorized users cannot execute a `list` query and accidentally retrieve sensitive lead information, perfectly adhering to the QAP principle by preventing insecure queries from ever returning partial or filtered results."
+  }
+}
