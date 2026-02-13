@@ -1,20 +1,45 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Image from 'next/image';
-import type { EmblaCarouselType, EmblaOptionsType } from 'embla-carousel-react';
+import type { EmblaOptionsType } from 'embla-carousel-react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages, type ImagePlaceholder } from '@/lib/placeholder-images';
-import { ArrowLeft, ArrowRight, Upload, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Upload, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { enhanceUploadedImage } from '@/app/actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+
+// Firebase Imports
+import { useFirestore, useStorage, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+// Helper to convert Data URL to Blob
+const dataURLtoBlob = (dataurl: string) => {
+    const arr = dataurl.split(',');
+    if (arr.length < 2) return null;
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    if (!mimeMatch || mimeMatch.length < 2) return null;
+    const mime = mimeMatch[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+}
+
+type UploadStatus = 'enhancing' | 'uploading' | 'error';
+type DisplayImage = ImagePlaceholder & { status?: UploadStatus };
 
 const CarouselInstance = ({
   images,
   options,
 }: {
-  images: { id: string; imageUrl: string; description: string; imageHint: string; isLoading?: boolean }[];
+  images: DisplayImage[];
   options?: EmblaOptionsType;
 }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel(options);
@@ -32,17 +57,15 @@ const CarouselInstance = ({
 
   useEffect(() => {
     if (!emblaApi || isPaused) return;
-
     const autoplay = setInterval(() => {
-      if (emblaApi.canScrollNext()) {
-        emblaApi.scrollNext();
-      } else {
-        emblaApi.scrollTo(0);
-      }
+      emblaApi.scrollNext();
     }, 15000);
-
     return () => clearInterval(autoplay);
   }, [emblaApi, isPaused]);
+
+  if (!images.length) {
+    return null;
+  }
 
   return (
     <div className="relative">
@@ -51,10 +74,20 @@ const CarouselInstance = ({
           {images.map((img) => (
             <div className="relative flex-[0_0_100%] sm:flex-[0_0_50%] md:flex-[0_0_33.33%] lg:flex-[0_0_25%] p-2" key={img.id}>
               <div className="aspect-video w-full overflow-hidden rounded-lg shadow-lg">
-                {img.isLoading ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-muted">
-                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                     <p className="mt-2 text-sm text-muted-foreground">Enhancing image...</p>
+                {img.status ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-muted text-center p-4">
+                    {img.status === 'error' ? (
+                       <>
+                        <AlertTriangle className="h-8 w-8 text-destructive" />
+                        <p className="mt-2 text-sm font-semibold text-destructive">Upload Failed</p>
+                        <p className="text-xs text-muted-foreground">{img.description}</p>
+                       </>
+                    ) : (
+                      <>
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="mt-2 text-sm text-muted-foreground">{img.status === 'enhancing' ? 'Enhancing...' : 'Uploading...'}</p>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <Image
@@ -94,97 +127,106 @@ const CarouselInstance = ({
   );
 };
 
-const LOCAL_STORAGE_KEY = 'rw-property-gallery-images';
 
 export default function Gallery() {
-  const [allImages, setAllImages] = useState<(ImagePlaceholder & { isLoading?: boolean })[]>([]);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const firestore = useFirestore();
+  const storage = useStorage();
+  const { toast } = useToast();
   const inputFileRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
-    setIsHydrated(true);
-    try {
-      const storedImages = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (storedImages) {
-        setAllImages(JSON.parse(storedImages));
-      } else {
-        setAllImages(PlaceHolderImages);
-      }
-    } catch (e) {
-      console.error('Could not load images from local storage', e);
-      setAllImages(PlaceHolderImages);
-    }
-  }, []);
+  const [localUploads, setLocalUploads] = useState<DisplayImage[]>([]);
+  const isUploading = localUploads.some(u => u.status === 'enhancing' || u.status === 'uploading');
 
-  useEffect(() => {
-    if (isHydrated) {
-      try {
-        const imagesToSave = allImages.filter(img => !img.isLoading);
-        window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(imagesToSave));
-      } catch (e) {
-        console.error('Could not save images to local storage', e);
-      }
-    }
-  }, [allImages, isHydrated]);
+  const galleryQuery = useMemoFirebase(
+    () => firestore ? query(collection(firestore, 'gallery_images'), orderBy('uploadedAt', 'desc')) : null,
+    [firestore]
+  );
+  const { data: firestoreImages, isLoading: areImagesLoading } = useCollection<ImagePlaceholder>(galleryQuery);
 
+  const allImages = useMemo(() => {
+    const onlineImages = firestoreImages || [];
+    // Combine, with local uploads appearing first
+    const combined = [...localUploads, ...onlineImages];
+    // Remove duplicates from placeholders, keeping only those not in firestore
+    const placeholderIds = new Set(onlineImages.map(img => img.id));
+    const uniquePlaceholders = PlaceHolderImages.filter(p => !placeholderIds.has(p.id));
+    
+    return [...combined, ...uniquePlaceholders];
+  }, [localUploads, firestoreImages]);
+  
   const handleUploadClick = () => {
     inputFileRef.current?.click();
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && !isUploading) {
-      setIsUploading(true);
-      const reader = new FileReader();
-      const tempId = `uploading-${Date.now()}`;
+    if (!file) return;
 
-      reader.onloadstart = () => {
-         const placeholderImage = {
-          id: tempId,
-          imageUrl: '',
-          description: 'Enhancing image...',
-          imageHint: 'enhancing',
-          isLoading: true,
-        };
-        setAllImages((prev) => [placeholderImage, ...prev]);
-      }
+    const tempId = `uploading-${Date.now()}`;
+    const reader = new FileReader();
 
-      reader.onloadend = async () => {
-        const originalDataUrl = reader.result as string;
-        try {
-          const enhancedDataUrl = await enhanceUploadedImage(originalDataUrl);
-          const newImage: ImagePlaceholder = {
-            id: `uploaded-${Date.now()}`,
-            imageUrl: enhancedDataUrl,
-            description: file.name,
-            imageHint: 'uploaded image',
-          };
-          setAllImages((prev) =>
-            prev.map((img) => (img.id === tempId ? { ...newImage, isLoading: false } : img))
-          );
-        } catch (error) {
-          console.error('Failed to enhance image:', error);
-          // On error, remove the placeholder
-          setAllImages((prev) => prev.filter((img) => img.id !== tempId));
-        } finally {
-           setIsUploading(false);
-           // Reset file input
-           if(inputFileRef.current) {
-             inputFileRef.current.value = '';
-           }
-        }
+    reader.onloadstart = () => {
+      const newUpload: DisplayImage = {
+        id: tempId,
+        imageUrl: URL.createObjectURL(file), // Show a temporary local preview
+        description: file.name,
+        imageHint: 'enhancing',
+        status: 'enhancing',
       };
+      setLocalUploads(prev => [newUpload, ...prev]);
+    };
 
-      reader.readAsDataURL(file);
-    }
+    reader.onloadend = async () => {
+      const originalDataUrl = reader.result as string;
+      
+      try {
+        const enhancedDataUrl = await enhanceUploadedImage(originalDataUrl);
+        setLocalUploads(prev => prev.map(u => u.id === tempId ? { ...u, status: 'uploading' } : u));
+        
+        const blob = dataURLtoBlob(enhancedDataUrl);
+        if (!blob) throw new Error("Failed to convert enhanced image to Blob.");
+
+        const storageRef = ref(storage, `gallery_images/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, blob);
+        
+        const downloadURL = await getDownloadURL(storageRef);
+
+        const imageMetadata = {
+          imageUrl: downloadURL,
+          description: file.name,
+          imageHint: 'uploaded image',
+          uploadedAt: serverTimestamp(),
+        };
+        // This will be caught by useCollection and update the UI automatically
+        addDocumentNonBlocking(collection(firestore, 'gallery_images'), imageMetadata);
+
+        setLocalUploads(prev => prev.filter(u => u.id !== tempId));
+        toast({
+          title: "Upload Successful",
+          description: "Your image has been added to the gallery.",
+          action: <CheckCircle className="text-green-500" />,
+        });
+
+      } catch (error) {
+        console.error('Full upload process failed:', error);
+        setLocalUploads(prev => prev.map(u => u.id === tempId ? { ...u, status: 'error', description: (error as Error).message } : u));
+        toast({ variant: 'destructive', title: "Upload Failed", description: "Could not save the image. Please try again." });
+        
+        setTimeout(() => {
+             setLocalUploads(prev => prev.filter(u => u.id !== tempId));
+        }, 5000);
+      } finally {
+        if (inputFileRef.current) inputFileRef.current.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const midIndex = Math.ceil(allImages.length / 2);
   const firstRowImages = allImages.slice(0, midIndex);
   const secondRowImages = allImages.slice(midIndex);
 
-  if (!isHydrated) {
+  if (areImagesLoading && !firestoreImages) {
     return (
         <section id="gallery" className="w-full pt-24 pb-12 md:py-24 lg:py-32 bg-background">
           <div className="container mx-auto px-4 md:px-6">
@@ -238,7 +280,7 @@ export default function Gallery() {
                 ) : (
                   <Upload className="mr-2 h-4 w-4" />
                 )}
-                {isUploading ? 'Enhancing...' : 'Upload Photo'}
+                {isUploading ? 'Processing...' : 'Upload Photo'}
               </Button>
               <input
                 type="file"

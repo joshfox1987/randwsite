@@ -51,7 +51,8 @@ service cloud.firestore {
 
     match /gallery_images/{imageId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
 
     match /customer_reviews/{reviewId} {

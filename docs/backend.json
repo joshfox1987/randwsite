@@ -139,7 +139,7 @@
           "schema": {
             "$ref": "#/backend/entities/GalleryImage"
           },
-          "description": "Stores metadata for all images displayed in the company's interactive gallery. All documents in this collection are publicly readable, and write access is restricted to administrators.",
+          "description": "Stores metadata for all images displayed in the company's interactive gallery. All documents in this collection are publicly readable, and authenticated users can upload new images. Only administrators can edit or delete existing images.",
           "params": [
             {
               "name": "galleryImageId",
