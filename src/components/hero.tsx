@@ -73,7 +73,7 @@ export default function Hero() {
             </Popover>
           </div>
 
-          <div className="flex flex-wrap justify-center items-center gap-4 max-w-3xl">
+          <div className="flex flex-wrap justify-center items-center gap-4 max-w-3xl pb-8 sm:pb-0">
             {services.map((service) => (
               <Badge key={service} variant="secondary" className="text-sm font-medium px-3 py-1 rounded-full bg-white/10 border-white/20 text-white hover:bg-white/20">
                 {service}

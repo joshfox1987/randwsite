@@ -186,7 +186,7 @@ export default function Gallery() {
 
   if (!isHydrated) {
     return (
-        <section id="gallery" className="w-full py-12 md:py-24 lg:py-32 bg-background">
+        <section id="gallery" className="w-full pt-24 pb-12 md:py-24 lg:py-32 bg-background">
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="mb-8 w-full">
@@ -219,7 +219,7 @@ export default function Gallery() {
   }
 
   return (
-    <section id="gallery" className="w-full py-12 md:py-24 lg:py-32 bg-background">
+    <section id="gallery" className="w-full pt-24 pb-12 md:py-24 lg:py-32 bg-background">
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="mb-8 w-full">
