@@ -222,10 +222,6 @@ export default function Gallery() {
     reader.readAsDataURL(file);
   };
 
-  const midIndex = Math.ceil(allImages.length / 2);
-  const firstRowImages = allImages.slice(0, midIndex);
-  const secondRowImages = allImages.slice(midIndex);
-
   if (areImagesLoading && !firestoreImages) {
     return (
         <section id="gallery" className="w-full pt-24 pb-12 md:py-24 lg:py-32 bg-background">
@@ -294,8 +290,7 @@ export default function Gallery() {
           </div>
         </div>
         <div className="flex flex-col gap-4">
-          <CarouselInstance images={firstRowImages} options={{ loop: true }} />
-          <CarouselInstance images={secondRowImages} options={{ loop: true, direction: 'rtl' }} />
+          <CarouselInstance images={allImages} options={{ loop: true }} />
         </div>
       </div>
     </section>
