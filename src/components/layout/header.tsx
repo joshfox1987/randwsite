@@ -1,5 +1,5 @@
 import { Logo } from '@/components/logo';
-import { Phone } from 'lucide-react';
+import { Phone, Facebook } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export default function Header() {
@@ -37,6 +37,11 @@ export default function Header() {
              <a href="tel:208-831-6824" className="flex items-center gap-2 font-semibold">
                 <Phone className="h-4 w-4" />
                 (208) 831-6824
+            </a>
+          </Button>
+          <Button asChild variant="ghost" size="icon">
+            <a href="https://www.facebook.com/RandWps" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+              <Facebook className="h-5 w-5 text-foreground/60 transition-colors hover:text-foreground/80" />
             </a>
           </Button>
         </nav>

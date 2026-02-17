@@ -36,6 +36,9 @@ export function getSdks(firebaseApp: FirebaseApp) {
     firebaseApp,
     auth: getAuth(firebaseApp),
     firestore: getFirestore(firebaseApp),
-    storage: getStorage(firebaseApp)
+    storage: getStorage(firebaseApp, undefined, {
+      maxUploadRetryTime: 300000,
+      maxOperationRetryTime: 300000,
+    })
   };
 }
