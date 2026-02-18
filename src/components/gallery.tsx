@@ -35,6 +35,8 @@ const dataURLtoBlob = (dataurl: string) => {
 type UploadStatus = 'enhancing' | 'uploading' | 'error';
 type DisplayImage = ImagePlaceholder & { status?: UploadStatus };
 
+const MIN_GALLERY_IMAGES = 12;
+
 const CarouselInstance = ({
   images,
   options,
@@ -145,13 +147,20 @@ export default function Gallery() {
 
   const allImages = useMemo(() => {
     const onlineImages = firestoreImages || [];
-    // Combine, with local uploads appearing first
-    const combined = [...localUploads, ...onlineImages];
-    // Remove duplicates from placeholders, keeping only those not in firestore
-    const placeholderIds = new Set(onlineImages.map(img => img.id));
-    const uniquePlaceholders = PlaceHolderImages.filter(p => !placeholderIds.has(p.id));
+    let combined = [...localUploads, ...onlineImages];
     
-    return [...combined, ...uniquePlaceholders];
+    // Create a Set of IDs for quick lookup to avoid duplicates
+    const presentIds = new Set(combined.map(img => img.id));
+    
+    // Filter placeholders to only include those not already present
+    const remainingPlaceholders = PlaceHolderImages.filter(p => !presentIds.has(p.id));
+
+    // If we have fewer images than the minimum, fill with placeholders
+    if (combined.length < MIN_GALLERY_IMAGES) {
+        combined = combined.concat(remainingPlaceholders.slice(0, MIN_GALLERY_IMAGES - combined.length));
+    }
+    
+    return combined;
   }, [localUploads, firestoreImages]);
   
   const handleUploadClick = () => {
@@ -238,13 +247,6 @@ export default function Gallery() {
             <div className="flex flex-col gap-4">
                 <div className="flex">
                     {[...Array(4)].map((_, i) => (
-                        <div className="relative flex-[0_0_100%] sm:flex-[0_0_50%] md:flex-[0_0_33.33%] lg:flex-[0_0_25%] p-2" key={i}>
-                            <Skeleton className="aspect-video w-full rounded-lg" />
-                        </div>
-                    ))}
-                </div>
-                <div className="flex">
-                     {[...Array(4)].map((_, i) => (
                         <div className="relative flex-[0_0_100%] sm:flex-[0_0_50%] md:flex-[0_0_33.33%] lg:flex-[0_0_25%] p-2" key={i}>
                             <Skeleton className="aspect-video w-full rounded-lg" />
                         </div>

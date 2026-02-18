@@ -31,6 +31,31 @@ export async function saveLead(lead: Lead) {
     }
 }
 
+export type ReviewData = {
+  name: string;
+  rating: number;
+  comment: string;
+};
+
+
+export async function saveReview(review: ReviewData) {
+    const { firestore } = initializeFirebase();
+    try {
+        const reviewData = {
+            reviewerName: review.name,
+            rating: review.rating,
+            comment: review.comment,
+            submittedAt: serverTimestamp(),
+        };
+        const docRef = await addDoc(collection(firestore, 'customer_reviews'), reviewData);
+        console.log('Review saved with ID: ', docRef.id);
+        return { success: true, id: docRef.id };
+    } catch (e) {
+        console.error('Error adding document: ', e);
+        return { success: false, error: 'Failed to save review.' };
+    }
+}
+
 export async function getVisitorCount(): Promise<number> {
     const { firestore } = initializeFirebase();
     const docRef = doc(firestore, 'site_analytics', 'visitorCounter');

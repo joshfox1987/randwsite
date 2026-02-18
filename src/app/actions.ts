@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { collectLeadInformation } from '@/ai/flows/ai-chatbot-lead-collection';
 import type { CollectLeadInformationOutput } from '@/ai/flows/ai-chatbot-lead-collection';
 import { enhanceImage } from '@/ai/flows/enhance-image-flow';
-import { saveLead } from '@/services/firestore';
+import { saveLead, saveReview } from '@/services/firestore';
 
 const reviewSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -20,9 +20,15 @@ export async function submitReview(data: Review) {
     return { success: false, error: result.error.flatten().fieldErrors };
   }
 
-  // In a real app, you would save this to a Firestore collection.
-  console.log('New Review Submitted:', result.data);
-  // We will return the validated data to be added to the client-side state for this demo.
+  // Save to Firestore
+  const firestoreResult = await saveReview(result.data);
+
+  if (!firestoreResult.success) {
+      // This is a server error, so we'll just return a generic form error.
+      return { success: false, error: { form: ['Sorry, there was an error submitting your review.'] } };
+  }
+
+  // Return success. The client-side will update via the real-time listener.
   return { success: true, data: result.data };
 }
 

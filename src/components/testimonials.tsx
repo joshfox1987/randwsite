@@ -16,12 +16,10 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Rating } from './ui/rating';
 
-const initialReviews: Review[] = [
-  { name: 'John D.', rating: 5, comment: 'Incredible service! The team was fast, reliable, and professional. They handled our debris removal with ease.' },
-  { name: 'Jane S.', rating: 5, comment: 'R & W Property Solutions cleaned up my property after a major storm, and it honestly looks better than it did before. Highly recommend!' },
-  { name: 'Mike R.', rating: 4, comment: 'Good work at a fair price. The restoration project was completed on time. Would use their services again.' },
-  { name: 'Sarah L.', rating: 5, comment: 'Absolutely fantastic. They repaired our water damage and were so thorough. Communication was excellent throughout the process.' },
-];
+// Firebase Imports
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { Skeleton } from './ui/skeleton';
 
 const reviewSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -29,7 +27,24 @@ const reviewSchema = z.object({
   comment: z.string().min(10, 'Comment must be at least 10 characters.'),
 });
 
-const ReviewCard = ({ review }: { review: Review }) => (
+// The data from Firestore has a different shape
+type FirestoreReview = {
+  id: string;
+  reviewerName: string;
+  rating: number;
+  comment: string;
+  submittedAt: any; // Firestore timestamp
+}
+
+// We map it to the shape our component expects
+const mapFirestoreReview = (review: FirestoreReview): Review & { id: string } => ({
+    id: review.id,
+    name: review.reviewerName,
+    rating: review.rating,
+    comment: review.comment,
+});
+
+const ReviewCard = ({ review }: { review: Review & { id: string } }) => (
   <Card>
     <CardHeader>
       <div className="flex items-center justify-between">
@@ -54,8 +69,16 @@ const ReviewCard = ({ review }: { review: Review }) => (
 );
 
 export default function Testimonials() {
-  const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const reviewsQuery = useMemoFirebase(
+    () => firestore ? query(collection(firestore, 'customer_reviews'), orderBy('submittedAt', 'desc'), limit(20)) : null,
+    [firestore]
+  );
+  const { data: firestoreReviews, isLoading: areReviewsLoading } = useCollection<FirestoreReview>(reviewsQuery);
+  
+  const reviews = (firestoreReviews || []).map(mapFirestoreReview);
 
   const form = useForm<z.infer<typeof reviewSchema>>({
     resolver: zodResolver(reviewSchema),
@@ -64,14 +87,34 @@ export default function Testimonials() {
 
   const onSubmit = async (data: z.infer<typeof reviewSchema>) => {
     const result = await submitReview(data);
-    if (result.success && result.data) {
-      setReviews([result.data, ...reviews]);
-      toast({ title: 'Success', description: 'Your review has been submitted!' });
+    if (result.success) {
+      toast({ title: 'Success', description: 'Your review has been submitted! It will appear shortly.' });
       form.reset();
     } else {
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not submit review. Please try again.' });
+      toast({ variant: 'destructive', title: 'Error', description: (result.error as any)?.form?.[0] || 'Could not submit review. Please try again.' });
     }
   };
+
+  const renderSkeletons = (count: number) => (
+    [...Array(count)].map((_, i) => (
+      <Card key={`skeleton-${i}`}>
+        <CardHeader>
+           <Skeleton className="h-6 w-1/3" />
+           <div className="flex items-center gap-1 mt-2">
+            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-5 w-5" />
+           </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+           <Skeleton className="h-4 w-full" />
+           <Skeleton className="h-4 w-3/4" />
+        </CardContent>
+      </Card>
+    ))
+  );
 
   return (
     <section id="reviews" className="w-full py-12 md:py-24 lg:py-32 bg-secondary/50">
@@ -84,22 +127,31 @@ export default function Testimonials() {
             ...take our customers' word for it. See what people are saying about our services.
           </p>
         </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {reviews.slice(0, 3).map((review, i) => (
-            <ReviewCard key={`recent-${i}`} review={review} />
-          ))}
-        </div>
-        {reviews.length > 3 && (
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="item-1">
-              <AccordionTrigger>View All Reviews</AccordionTrigger>
-              <AccordionContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {reviews.slice(3).map((review, i) => (
-                  <ReviewCard key={`all-${i}`} review={review} />
-                ))}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+
+        {areReviewsLoading ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{renderSkeletons(3)}</div>
+        ) : reviews.length === 0 ? (
+            <div className="text-center text-muted-foreground">Be the first to leave a review!</div>
+        ) : (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {reviews.slice(0, 3).map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
+            </div>
+            {reviews.length > 3 && (
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger>View All Reviews</AccordionTrigger>
+                  <AccordionContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {reviews.slice(3).map((review) => (
+                      <ReviewCard key={review.id} review={review} />
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
+          </>
         )}
         <div className="mx-auto w-full max-w-2xl">
           <Card>

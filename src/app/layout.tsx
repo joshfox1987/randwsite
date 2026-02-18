@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AnonymousAuth } from '@/components/AnonymousAuth';
 import { VisitorTracker } from '@/components/VisitorTracker';
+import { GoogleAnalytics } from '@/components/GoogleAnalytics';
 
 export const metadata: Metadata = {
   title: 'R & W Property Solutions Hub',
@@ -30,6 +31,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AnonymousAuth>
             <VisitorTracker />
+            <GoogleAnalytics />
             {children}
           </AnonymousAuth>
         </FirebaseClientProvider>
