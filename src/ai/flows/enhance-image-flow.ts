@@ -1,56 +1,5 @@
 'use server';
 /**
- * @fileOverview An image enhancement AI agent.
- *
- * - enhanceImage - A function that handles the image enhancement process.
- * - EnhanceImageInput - The input type for the enhanceImage function.
- * - EnhanceImageOutput - The return type for the enhanceImage function.
+ * @fileOverview This flow was removed to simplify the image upload process and improve performance.
+ * The image enhancement step was causing delays and failures.
  */
-
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const EnhanceImageInputSchema = z.object({
-  photoDataUri: z
-    .string()
-    .describe(
-      "A photo as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
-  prompt: z.string().describe('Instructions for how to enhance the image.'),
-});
-export type EnhanceImageInput = z.infer<typeof EnhanceImageInputSchema>;
-
-const EnhanceImageOutputSchema = z.object({
-    enhancedPhotoDataUri: z.string().describe('The enhanced photo as a data URI.'),
-});
-export type EnhanceImageOutput = z.infer<typeof EnhanceImageOutputSchema>;
-
-export async function enhanceImage(input: EnhanceImageInput): Promise<EnhanceImageOutput> {
-  return enhanceImageFlow(input);
-}
-
-const enhanceImageFlow = ai.defineFlow(
-  {
-    name: 'enhanceImageFlow',
-    inputSchema: EnhanceImageInputSchema,
-    outputSchema: EnhanceImageOutputSchema,
-  },
-  async (input) => {
-    const { media } = await ai.generate({
-        model: 'googleai/gemini-2.5-flash-image',
-        prompt: [
-            { media: { url: input.photoDataUri } },
-            { text: input.prompt },
-        ],
-        config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-        },
-    });
-
-    if (!media?.url) {
-        throw new Error('Image enhancement failed to produce an image.');
-    }
-
-    return { enhancedPhotoDataUri: media.url };
-  }
-);

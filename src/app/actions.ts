@@ -3,7 +3,6 @@
 import { z } from 'zod';
 import { collectLeadInformation } from '@/ai/flows/ai-chatbot-lead-collection';
 import type { CollectLeadInformationOutput } from '@/ai/flows/ai-chatbot-lead-collection';
-import { enhanceImage } from '@/ai/flows/enhance-image-flow';
 import { saveLead, saveReview } from '@/services/firestore';
 
 const reviewSchema = z.object({
@@ -50,13 +49,4 @@ export async function sendChatMessage(
   }
 
   return aiResponse;
-}
-
-export async function enhanceUploadedImage(dataUri: string): Promise<string> {
-  const result = await enhanceImage({
-    photoDataUri: dataUri,
-    prompt:
-      'Enhance this image to look more professional by improving lighting, colors, and overall quality. Clean up any minor imperfections like scratches or blemishes. The result should be a high-quality photograph suitable for a company website.',
-  });
-  return result.enhancedPhotoDataUri;
 }

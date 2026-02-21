@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { PlaceHolderImages, type ImagePlaceholder } from '@/lib/placeholder-images';
 import { ArrowLeft, ArrowRight, Upload, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { enhanceUploadedImage } from '@/app/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,23 +15,7 @@ import { useFirestore, useStorage, useCollection, useMemoFirebase, addDocumentNo
 import { collection, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-// Helper to convert Data URL to Blob
-const dataURLtoBlob = (dataurl: string) => {
-    const arr = dataurl.split(',');
-    if (arr.length < 2) return null;
-    const mimeMatch = arr[0].match(/:(.*?);/);
-    if (!mimeMatch || mimeMatch.length < 2) return null;
-    const mime = mimeMatch[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new Blob([u8arr], { type: mime });
-}
-
-type UploadStatus = 'enhancing' | 'uploading' | 'error';
+type UploadStatus = 'uploading' | 'error';
 type DisplayImage = ImagePlaceholder & { status?: UploadStatus };
 
 const MIN_GALLERY_IMAGES = 12;
@@ -87,7 +70,7 @@ const CarouselInstance = ({
                     ) : (
                       <>
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <p className="mt-2 text-sm text-muted-foreground">{img.status === 'enhancing' ? 'Enhancing...' : 'Uploading...'}</p>
+                        <p className="mt-2 text-sm text-muted-foreground">Uploading...</p>
                       </>
                     )}
                   </div>
@@ -137,7 +120,7 @@ export default function Gallery() {
   const inputFileRef = useRef<HTMLInputElement>(null);
 
   const [localUploads, setLocalUploads] = useState<DisplayImage[]>([]);
-  const isUploading = localUploads.some(u => u.status === 'enhancing' || u.status === 'uploading');
+  const isUploading = localUploads.some(u => u.status === 'uploading');
 
   const galleryQuery = useMemoFirebase(
     () => firestore ? query(collection(firestore, 'gallery_images'), orderBy('uploadedAt', 'desc')) : null,
@@ -172,31 +155,19 @@ export default function Gallery() {
     if (!file) return;
 
     const tempId = `uploading-${Date.now()}`;
-    const reader = new FileReader();
-
-    reader.onloadstart = () => {
-      const newUpload: DisplayImage = {
-        id: tempId,
-        imageUrl: URL.createObjectURL(file), // Show a temporary local preview
-        description: file.name,
-        imageHint: 'enhancing',
-        status: 'enhancing',
-      };
-      setLocalUploads(prev => [newUpload, ...prev]);
+    const newUpload: DisplayImage = {
+      id: tempId,
+      imageUrl: URL.createObjectURL(file), // Show a temporary local preview
+      description: file.name,
+      imageHint: 'uploading',
+      status: 'uploading',
     };
+    setLocalUploads(prev => [newUpload, ...prev]);
 
-    reader.onloadend = async () => {
-      const originalDataUrl = reader.result as string;
-      
+    const uploadFile = async () => {
       try {
-        const enhancedDataUrl = await enhanceUploadedImage(originalDataUrl);
-        setLocalUploads(prev => prev.map(u => u.id === tempId ? { ...u, status: 'uploading' } : u));
-        
-        const blob = dataURLtoBlob(enhancedDataUrl);
-        if (!blob) throw new Error("Failed to convert enhanced image to Blob.");
-
         const storageRef = ref(storage, `gallery_images/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, blob);
+        await uploadBytes(storageRef, file);
         
         const downloadURL = await getDownloadURL(storageRef);
 
@@ -206,7 +177,6 @@ export default function Gallery() {
           imageHint: 'uploaded image',
           uploadedAt: serverTimestamp(),
         };
-        // This will be caught by useCollection and update the UI automatically
         addDocumentNonBlocking(collection(firestore, 'gallery_images'), imageMetadata);
 
         setLocalUploads(prev => prev.filter(u => u.id !== tempId));
@@ -217,7 +187,7 @@ export default function Gallery() {
         });
 
       } catch (error) {
-        console.error('Full upload process failed:', error);
+        console.error('Upload process failed:', error);
         setLocalUploads(prev => prev.map(u => u.id === tempId ? { ...u, status: 'error', description: (error as Error).message } : u));
         toast({ variant: 'destructive', title: "Upload Failed", description: "Could not save the image. Please try again." });
         
@@ -228,7 +198,8 @@ export default function Gallery() {
         if (inputFileRef.current) inputFileRef.current.value = '';
       }
     };
-    reader.readAsDataURL(file);
+
+    uploadFile();
   };
 
   if (areImagesLoading && !firestoreImages) {
@@ -278,7 +249,7 @@ export default function Gallery() {
                 ) : (
                   <Upload className="mr-2 h-4 w-4" />
                 )}
-                {isUploading ? 'Processing...' : 'Upload Photo'}
+                {isUploading ? 'Uploading...' : 'Upload Photo'}
               </Button>
               <input
                 type="file"
