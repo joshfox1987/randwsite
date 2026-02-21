@@ -7,6 +7,7 @@ import { sendLeadNotificationSms } from './sms';
 type Lead = {
     name: string;
     phoneNumber: string;
+    leadEmail: string;
     serviceNeeded: string;
     preferredBidTime: string;
 }

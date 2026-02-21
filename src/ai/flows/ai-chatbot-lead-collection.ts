@@ -21,6 +21,7 @@ const CollectLeadInformationOutputSchema = z.object({
   response: z.string().describe('The chatbot response to the user query.'),
   name: z.string().optional().describe('The user name.'),
   phoneNumber: z.string().optional().describe('The user phone number.'),
+  leadEmail: z.string().optional().describe('The user email address.'),
   serviceNeeded: z.string().optional().describe('The service the user needs.'),
   preferredBidTime: z.string().optional().describe('The user preferred bid time.'),
 });
@@ -44,6 +45,7 @@ const leadCollectionPrompt = ai.definePrompt({
   Politely ask for the following information from the user:
   - Name
   - Phone Number
+  - Email Address
   - Service Needed
   - Preferred Bid Time
 
@@ -57,6 +59,7 @@ const leadCollectionPrompt = ai.definePrompt({
     "response": "<response to the user's query>",
     "name": "<user's name>",
     "phoneNumber": "<user's phone number>",
+    "leadEmail": "<user's email address>",
     "serviceNeeded": "<service the user needs>",
     "preferredBidTime": "<user's preferred bid time>"
   }`,

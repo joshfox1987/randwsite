@@ -39,10 +39,11 @@ export async function sendChatMessage(
   const aiResponse = await collectLeadInformation({ query });
 
   // If a lead was successfully collected, save it.
-  if (aiResponse.name && aiResponse.phoneNumber && aiResponse.serviceNeeded) {
+  if (aiResponse.name && aiResponse.phoneNumber && aiResponse.leadEmail && aiResponse.serviceNeeded) {
     await saveLead({
         name: aiResponse.name,
         phoneNumber: aiResponse.phoneNumber,
+        leadEmail: aiResponse.leadEmail,
         serviceNeeded: aiResponse.serviceNeeded,
         preferredBidTime: aiResponse.preferredBidTime || '',
     });
