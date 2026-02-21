@@ -11,8 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
 // Firebase Imports
-import { useFirestore, useStorage, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useStorage, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, serverTimestamp, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 type UploadStatus = 'uploading' | 'error';
@@ -132,13 +132,10 @@ export default function Gallery() {
     const onlineImages = firestoreImages || [];
     let combined = [...localUploads, ...onlineImages];
     
-    // Create a Set of IDs for quick lookup to avoid duplicates
     const presentIds = new Set(combined.map(img => img.id));
     
-    // Filter placeholders to only include those not already present
     const remainingPlaceholders = PlaceHolderImages.filter(p => !presentIds.has(p.id));
 
-    // If we have fewer images than the minimum, fill with placeholders
     if (combined.length < MIN_GALLERY_IMAGES) {
         combined = combined.concat(remainingPlaceholders.slice(0, MIN_GALLERY_IMAGES - combined.length));
     }
@@ -150,56 +147,53 @@ export default function Gallery() {
     inputFileRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !firestore) return;
 
     const tempId = `uploading-${Date.now()}`;
     const newUpload: DisplayImage = {
       id: tempId,
-      imageUrl: URL.createObjectURL(file), // Show a temporary local preview
+      imageUrl: URL.createObjectURL(file),
       description: file.name,
       imageHint: 'uploading',
       status: 'uploading',
     };
+
     setLocalUploads(prev => [newUpload, ...prev]);
 
-    const uploadFile = async () => {
-      try {
-        const storageRef = ref(storage, `gallery_images/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        
-        const downloadURL = await getDownloadURL(storageRef);
+    try {
+      const storageRef = ref(storage, `gallery_images/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      
+      const downloadURL = await getDownloadURL(storageRef);
 
-        const imageMetadata = {
-          imageUrl: downloadURL,
-          description: file.name,
-          imageHint: 'uploaded image',
-          uploadedAt: serverTimestamp(),
-        };
-        addDocumentNonBlocking(collection(firestore, 'gallery_images'), imageMetadata);
+      const imageMetadata = {
+        imageUrl: downloadURL,
+        description: file.name,
+        imageHint: 'uploaded image',
+        uploadedAt: serverTimestamp(),
+      };
+      await addDoc(collection(firestore, 'gallery_images'), imageMetadata);
 
-        setLocalUploads(prev => prev.filter(u => u.id !== tempId));
-        toast({
-          title: "Upload Successful",
-          description: "Your image has been added to the gallery.",
-          action: <CheckCircle className="text-green-500" />,
-        });
+      setLocalUploads(prev => prev.filter(u => u.id !== tempId));
+      toast({
+        title: "Upload Successful",
+        description: "Your image has been added to the gallery.",
+        action: <CheckCircle className="text-green-500" />,
+      });
 
-      } catch (error) {
-        console.error('Upload process failed:', error);
-        setLocalUploads(prev => prev.map(u => u.id === tempId ? { ...u, status: 'error', description: (error as Error).message } : u));
-        toast({ variant: 'destructive', title: "Upload Failed", description: "Could not save the image. Please try again." });
-        
-        setTimeout(() => {
-             setLocalUploads(prev => prev.filter(u => u.id !== tempId));
-        }, 5000);
-      } finally {
-        if (inputFileRef.current) inputFileRef.current.value = '';
-      }
-    };
-
-    uploadFile();
+    } catch (error) {
+      console.error('Upload process failed:', error);
+      setLocalUploads(prev => prev.map(u => u.id === tempId ? { ...u, status: 'error', description: 'Check permissions & try again.' } : u));
+      toast({ variant: 'destructive', title: "Upload Failed", description: "Could not save image. You may need to configure Storage security rules in Firebase." });
+      
+      setTimeout(() => {
+            setLocalUploads(prev => prev.filter(u => u.id !== tempId));
+      }, 5000);
+    } finally {
+      if (inputFileRef.current) inputFileRef.current.value = '';
+    }
   };
 
   if (areImagesLoading && !firestoreImages) {
