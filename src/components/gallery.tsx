@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Upload, Loader2, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useStorage, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useStorage, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, serverTimestamp, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PlaceHolderImages, type ImagePlaceholder } from '@/lib/placeholder-images';
@@ -24,6 +24,7 @@ export default function Gallery() {
   const storage = useStorage();
   const { toast } = useToast();
   const inputFileRef = useRef<HTMLInputElement>(null);
+  const { isUserLoading: isAuthLoading } = useUser();
 
   const [localUploads, setLocalUploads] = useState<UploadingImage[]>([]);
 
@@ -43,6 +44,7 @@ export default function Gallery() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isUploading = localUploads.some((u) => u.status === 'uploading');
+  const uploadDisabled = isUploading || isAuthLoading;
 
   const resetTimeout = () => {
     if (timeoutRef.current) {
@@ -174,12 +176,18 @@ export default function Gallery() {
                 variant="outline"
                 className="absolute right-0 top-1/2 -translate-y-1/2"
                 onClick={handleUploadClick}
-                disabled={isUploading}
+                disabled={uploadDisabled}
               >
-                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                {isUploading ? 'Uploading...' : 'Upload Photos'}
+                {isAuthLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : isUploading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {isAuthLoading ? 'Authenticating...' : isUploading ? 'Uploading...' : 'Upload Photos'}
               </Button>
-              <input type="file" ref={inputFileRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple disabled={isUploading} />
+              <input type="file" ref={inputFileRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple disabled={uploadDisabled} />
             </div>
           </div>
         </div>
