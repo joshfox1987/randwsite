@@ -2,7 +2,7 @@
   "heroImage": {
     "id": "hero-background",
     "description": "A beautiful house exterior, representing property solutions.",
-    "imageUrl": "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxob3VzZSUyMGV4dGVyaW9yfGVufDB8fHx8MTc3MDM3ODA1NHww&ixlib=rb-4.1.0&q=80&w=1920",
+    "imageUrl": "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxob3VzZSUyMGV4dGVyaW9yfGVufDB8fHx8MTc3MDM3ODA1NHww&ixlib.rb-4.1.0&q=80&w=1920",
     "imageHint": "house exterior"
   },
   "placeholderImages": [
@@ -11,6 +11,24 @@
       "description": "The R&W Property Solutions team with their work truck.",
       "imageUrl": "https://storage.googleapis.com/gweb-aip-generative-ai-testing-misc/prompt_images/image.png",
       "imageHint": "team photo"
+    },
+    {
+      "id": "gallery-kitchen-remodel",
+      "description": "A newly remodeled modern kitchen.",
+      "imageUrl": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=1920",
+      "imageHint": "kitchen remodel"
+    },
+    {
+      "id": "gallery-yard-cleanup",
+      "description": "Yard after debris and stump removal.",
+      "imageUrl": "https://images.unsplash.com/photo-1588627541420-fce3f3619c99?q=80&w=1920",
+      "imageHint": "yard cleanup"
+    },
+    {
+      "id": "gallery-exterior-painting",
+      "description": "A house exterior being painted.",
+      "imageUrl": "https://images.unsplash.com/photo-1621999806334-03a42c94c34d?q=80&w=1920",
+      "imageHint": "exterior painting"
     }
   ]
 }
