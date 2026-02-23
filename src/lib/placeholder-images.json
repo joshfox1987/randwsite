@@ -7,6 +7,12 @@
   },
   "placeholderImages": [
     {
+      "id": "gallery-team-photo",
+      "description": "The R&W Property Solutions team with their work truck.",
+      "imageUrl": "https://storage.googleapis.com/gweb-aip-generative-ai-testing-misc/prompt_images/image.png",
+      "imageHint": "team photo"
+    },
+    {
       "id": "gallery-1",
       "description": "A modern kitchen renovation.",
       "imageUrl": "https://images.unsplash.com/photo-1613082374567-52aefdea4f3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxraXRjaGVuJTIwcmVub3ZhdGlvbnxlbnwwfHx8fDE3NzAzMTc2MTN8MA&ixlib=rb-4.1.0&q=80&w=1080",
