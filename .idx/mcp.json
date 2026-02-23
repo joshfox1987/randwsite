@@ -8,7 +8,17 @@
         "experimental:mcp",
         "--only",
         "auth,firestore"
-      ]
+      ],
+      "gcloud": {
+        "command": "gcloud",
+        "args": [
+          "beta",
+          "mcp",
+          "--only",
+          "auth,compute"
+        ]
+      }
+
     }
   },
   "enabledTools": {
