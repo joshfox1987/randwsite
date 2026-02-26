@@ -6,7 +6,7 @@ import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus } from 'lucide-re
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useStorage, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, query, serverTimestamp, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { cn } from '@/lib/utils';
 
@@ -21,12 +21,20 @@ export default function Gallery() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
+  // Removed orderBy('uploadedAt') to ensure images appear even if that field is missing
   const galleryQuery = useMemoFirebase(
-    () => (firestore ? query(collection(firestore, 'gallery_images'), orderBy('uploadedAt', 'desc')) : null),
+    () => (firestore ? collection(firestore, 'gallery_images') : null),
     [firestore]
   );
   
-  const { data: firestoreImages, isLoading: areImagesLoading } = useCollection<any>(galleryQuery);
+  const { data: rawImages, isLoading: areImagesLoading } = useCollection<any>(galleryQuery);
+
+  // Sort in memory if needed, handling missing timestamps gracefully
+  const firestoreImages = rawImages ? [...rawImages].sort((a, b) => {
+    const timeA = a.uploadedAt?.toMillis?.() || a.uploadedAt || 0;
+    const timeB = b.uploadedAt?.toMillis?.() || b.uploadedAt || 0;
+    return timeB - timeA;
+  }) : null;
 
   // Auto-play effect
   useEffect(() => {
@@ -34,7 +42,7 @@ export default function Gallery() {
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % firestoreImages.length);
-    }, 5000); // Change image every 5 seconds
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [firestoreImages, isPaused]);
@@ -125,6 +133,7 @@ export default function Gallery() {
             <div className="flex flex-col items-center justify-center h-full text-white/50 space-y-4">
               <ImagePlus className="h-16 w-16" />
               <p className="text-xl">Your cinematic gallery is empty.</p>
+              <p className="text-sm">Try uploading a photo using the button above.</p>
             </div>
           ) : (
             <>
