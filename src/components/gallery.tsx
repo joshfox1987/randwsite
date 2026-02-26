@@ -22,7 +22,7 @@ export default function Gallery() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // We fetch images without a strict sort to avoid index requirements or failures if fields are missing
+  // Fetch images without a strict sort to avoid index requirements
   const galleryQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'gallery_images') : null),
     [firestore]
@@ -30,20 +30,20 @@ export default function Gallery() {
   
   const { data: rawImages, isLoading: areImagesLoading, error: firestoreError } = useCollection<any>(galleryQuery);
 
-  // Sort in memory to handle missing 'uploadedAt' gracefully
+  // Sort in memory to handle missing 'uploadedAt' gracefully and avoid Firestore Index requirements
   const firestoreImages = rawImages ? [...rawImages].sort((a, b) => {
     const timeA = a.uploadedAt?.toMillis?.() || a.uploadedAt || 0;
     const timeB = b.uploadedAt?.toMillis?.() || b.uploadedAt || 0;
     return timeB - timeA;
   }) : null;
 
-  // Auto-play effect
+  // Cinematic Auto-play effect
   useEffect(() => {
     if (!firestoreImages || firestoreImages.length <= 1 || isPaused) return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % firestoreImages.length);
-    }, 6000); // 6 seconds per slide for a cinematic feel
+    }, 6000);
 
     return () => clearInterval(interval);
   }, [firestoreImages, isPaused]);
@@ -52,8 +52,8 @@ export default function Gallery() {
     if (!user) {
         toast({
             variant: 'destructive',
-            title: 'Not Authenticated',
-            description: 'Please wait a moment while we sign you in anonymously.',
+            title: 'Connecting...',
+            description: 'Please wait a second while we establish a secure connection.',
         });
         return;
     }
@@ -75,17 +75,16 @@ export default function Gallery() {
 
         await addDoc(collection(firestore, 'gallery_images'), {
           imageUrl: downloadURL,
-          url: downloadURL, // Support both field names for compatibility
+          url: downloadURL, // Support both field names for maximum compatibility
           description: file.name,
           uploadedAt: serverTimestamp(),
           uploaderUid: user.uid,
-          storagePath: storageRef.fullPath,
         });
 
-        toast({ title: 'Success', description: `${file.name} added to gallery.` });
+        toast({ title: 'Success', description: `${file.name} uploaded.` });
       } catch (error) {
         console.error('Upload failed:', error);
-        toast({ variant: 'destructive', title: 'Upload Failed', description: `Could not upload ${file.name}. Check your internet and permissions.` });
+        toast({ variant: 'destructive', title: 'Upload Failed', description: `Could not upload ${file.name}.` });
       }
     }
 
@@ -116,12 +115,12 @@ export default function Gallery() {
             Explore our latest property restoration and repair projects.
           </p>
           
-          <div className="pt-4 flex flex-col items-center gap-2">
+          <div className="pt-4">
             <Button
                 variant="outline"
                 onClick={handleUploadClick}
                 disabled={isUploading || isAuthLoading}
-                className="rounded-full px-8 h-12 text-base shadow-sm hover:shadow-md transition-all"
+                className="rounded-full px-8 h-12 text-base transition-all hover:scale-105"
             >
                 {isUploading || isAuthLoading ? (
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -131,21 +130,15 @@ export default function Gallery() {
                 {isAuthLoading ? 'Connecting...' : (isUploading ? 'Uploading...' : 'Add Project Photos')}
             </Button>
             <input type="file" ref={inputFileRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
-            
-            {userError && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> Auth Error: {userError.message}
-                </p>
-            )}
           </div>
         </div>
 
         {firestoreError && (
             <Alert variant="destructive" className="max-w-2xl mx-auto mb-8">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Database Error</AlertTitle>
+                <AlertTitle>Database Sync Issue</AlertTitle>
                 <AlertDescription>
-                    We couldn't load the gallery images. This might be due to a permission issue or a missing index.
+                    We're having trouble reaching the image database. Please refresh the page.
                 </AlertDescription>
             </Alert>
         )}
@@ -157,9 +150,9 @@ export default function Gallery() {
             <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4 p-8 text-center">
               <ImagePlus className="h-20 w-20 opacity-20" />
               <div className="space-y-2">
-                  <p className="text-xl font-semibold">Your cinematic gallery is empty.</p>
+                  <p className="text-xl font-semibold text-white">Your gallery is ready for photos.</p>
                   <p className="text-sm max-w-md mx-auto">
-                    If you've already uploaded images to Storage, make sure they are also registered in the 'gallery_images' Firestore collection. You can also use the button above to add them directly.
+                    Once you upload photos using the button above or sync your Storage files, they will appear here automatically.
                   </p>
               </div>
             </div>
@@ -183,34 +176,34 @@ export default function Gallery() {
                     priority={index === currentIndex}
                     sizes="(max-width: 1280px) 100vw, 1280px"
                   />
-                  {/* Cinematic Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
+                  {/* Cinematic Shadow Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 pointer-events-none" />
                   
-                  <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 transform transition-all duration-700 translate-y-0 opacity-100">
-                     <p className="text-white text-2xl md:text-4xl font-headline font-bold drop-shadow-2xl">
-                        {image.description?.replace(/\.[^/.]+$/, "") || 'Completed Project'}
+                  <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
+                     <p className="text-white text-2xl md:text-4xl font-headline font-bold drop-shadow-lg">
+                        {image.description?.replace(/\.[^/.]+$/, "") || 'R & W Completed Project'}
                      </p>
                   </div>
                 </div>
               ))}
 
-              {/* Navigation Arrows */}
+              {/* Navigation Controls */}
               <button
                 onClick={prevSlide}
-                className="absolute left-6 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/30 hover:bg-primary/80 text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm"
-                aria-label="Previous image"
+                className="absolute left-6 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/40 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
+                aria-label="Previous"
               >
                 <ChevronLeft className="h-8 w-8" />
               </button>
               <button
                 onClick={nextSlide}
-                className="absolute right-6 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/30 hover:bg-primary/80 text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm"
-                aria-label="Next image"
+                className="absolute right-6 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/40 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
+                aria-label="Next"
               >
                 <ChevronRight className="h-8 w-8" />
               </button>
 
-              {/* Progress Indicators */}
+              {/* Cinematic Progress Bar */}
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
                 {firestoreImages.map((_, index) => (
                   <button
@@ -218,9 +211,8 @@ export default function Gallery() {
                     onClick={() => setCurrentIndex(index)}
                     className={cn(
                       "h-1.5 transition-all duration-300 rounded-full",
-                      index === currentIndex ? "w-10 bg-primary" : "w-2 bg-white/40 hover:bg-white/60"
+                      index === currentIndex ? "w-10 bg-primary" : "w-2 bg-white/30 hover:bg-white/50"
                     )}
-                    aria-label={`Go to image ${index + 1}`}
                   />
                 ))}
               </div>

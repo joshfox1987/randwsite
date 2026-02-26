@@ -1,6 +1,6 @@
 // src/firebase/firestore/config.ts
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getStorage } from 'firebase/storage';
 
 /**
@@ -17,6 +17,6 @@ export const firebaseConfig = {
   "messagingSenderId": "642303940569"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const storage = getStorage(app);
