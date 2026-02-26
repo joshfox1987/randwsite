@@ -1,27 +1,45 @@
 #!/bin/bash
 
+# Configuration for R & W Property Solutions
 PROJECT_ID="studio-3066782500-b50dd"
+BUCKET_NAME="studio-3066782500-b50dd.firebasestorage.app"
 COLLECTION_NAME="gallery_images"
 
-# Get the list of images from Firebase Storage
-# Make sure the path matches where you uploaded them
-IMAGES=$(gsutil ls gs://studio-3066782500-b50dd.firebasestorage.app/gallery_images/)
+echo "Starting image sync for project: ${PROJECT_ID}..."
 
-echo "Found images: $IMAGES"
+# Get the list of images from the root of the storage bucket
+# If your images are in a folder, add the folder name (e.g., gs://${BUCKET_NAME}/folder/)
+IMAGES=$(gsutil ls gs://${BUCKET_NAME}/)
+
+if [ -z "$IMAGES" ]; then
+    echo "No images found in gs://${BUCKET_NAME}/"
+    exit 1
+fi
+
+echo "Found images. Syncing to Firestore..."
 
 # Loop through each image and add it to Firestore
 for IMAGE in $IMAGES
 do
+  # Skip directories
+  if [[ $IMAGE == */ ]]; then
+    continue
+  fi
+
   # Get the image file name
   IMAGE_NAME=$(basename $IMAGE)
 
-  # Construct the public URL using the firebasestorage domain
-  IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/studio-3066782500-b50dd.appspot.com/o/gallery_images%2F${IMAGE_NAME}?alt=media"
+  # Construct the public URL for Firebase Storage
+  # Note: The %2F is the encoded '/' for the path
+  IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${IMAGE_NAME}?alt=media"
 
   echo "Syncing ${IMAGE_NAME}..."
 
-  # Add the image to Firestore using 'url' and 'imageUrl' for max compatibility
-  gcloud firestore documents write "${COLLECTION_NAME}/${IMAGE_NAME}" "url=${IMAGE_URL},imageUrl=${IMAGE_URL},description=${IMAGE_NAME},uploadedAt=server_timestamp()" --project "${PROJECT_ID}"
+  # Add the image to Firestore. We write to both 'url' and 'imageUrl' for max compatibility with the UI.
+  gcloud firestore documents write "${COLLECTION_NAME}/${IMAGE_NAME}" \
+    --project "${PROJECT_ID}" \
+    --values="url=${IMAGE_URL},imageUrl=${IMAGE_URL},description=R & W Project: ${IMAGE_NAME},uploadedAt=server_timestamp()"
+
 done
 
-echo "Sync complete!"
+echo "Sync complete! Refresh your website gallery to see the updates."

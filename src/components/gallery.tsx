@@ -6,7 +6,7 @@ import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle } fr
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useStorage, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -16,13 +16,13 @@ export default function Gallery() {
   const storage = useStorage();
   const { toast } = useToast();
   const inputFileRef = useRef<HTMLInputElement>(null);
-  const { user, isUserLoading: isAuthLoading, userError } = useUser();
+  const { user, isUserLoading: isAuthLoading } = useUser();
 
   const [isUploading, setIsUploading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Fetch images without a strict sort to avoid index requirements
+  // Memoized query to avoid infinite re-renders and meet hook requirements
   const galleryQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'gallery_images') : null),
     [firestore]
@@ -37,7 +37,7 @@ export default function Gallery() {
     return timeB - timeA;
   }) : null;
 
-  // Cinematic Auto-play effect
+  // Cinematic Auto-play effect: Fades images like a professional video reel
   useEffect(() => {
     if (!firestoreImages || firestoreImages.length <= 1 || isPaused) return;
 
@@ -53,7 +53,7 @@ export default function Gallery() {
         toast({
             variant: 'destructive',
             title: 'Connecting...',
-            description: 'Please wait a second while we establish a secure connection.',
+            description: 'Please wait while we establish a secure connection.',
         });
         return;
     }
@@ -112,7 +112,7 @@ export default function Gallery() {
             Cinematic Gallery
           </h2>
           <p className="text-muted-foreground max-w-[600px]">
-            Explore our latest property restoration and repair projects.
+            Explore our latest property restoration and repair projects in high definition.
           </p>
           
           <div className="pt-4">
@@ -136,13 +136,14 @@ export default function Gallery() {
         {firestoreError && (
             <Alert variant="destructive" className="max-w-2xl mx-auto mb-8">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Database Sync Issue</AlertTitle>
+                <AlertTitle>Database Connection Issue</AlertTitle>
                 <AlertDescription>
-                    We're having trouble reaching the image database. Please refresh the page.
+                    We're having trouble syncing your images. If you just uploaded photos to storage, make sure to run the sync script.
                 </AlertDescription>
             </Alert>
         )}
 
+        {/* Cinematic Slideshow Container */}
         <div className="relative group max-w-5xl mx-auto overflow-hidden rounded-2xl shadow-2xl aspect-video bg-neutral-900 border border-white/5">
           {areImagesLoading ? (
             <Skeleton className="w-full h-full" />
@@ -150,9 +151,9 @@ export default function Gallery() {
             <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4 p-8 text-center">
               <ImagePlus className="h-20 w-20 opacity-20" />
               <div className="space-y-2">
-                  <p className="text-xl font-semibold text-white">Your gallery is ready for photos.</p>
+                  <p className="text-xl font-semibold text-white">No Project Photos Found</p>
                   <p className="text-sm max-w-md mx-auto">
-                    Once you upload photos using the button above or sync your Storage files, they will appear here automatically.
+                    To see your Storage images here, please run the <code className="bg-white/10 px-1 rounded text-white">./add_images.sh</code> script in your terminal to sync them with the gallery.
                   </p>
               </div>
             </div>
@@ -170,7 +171,7 @@ export default function Gallery() {
                 >
                   <Image
                     src={image.imageUrl || image.url}
-                    alt={image.description || 'Project Image'}
+                    alt={image.description || 'R & W Property Solution'}
                     fill
                     className="object-cover"
                     priority={index === currentIndex}
