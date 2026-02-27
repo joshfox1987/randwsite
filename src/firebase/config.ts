@@ -5,7 +5,6 @@ import { getStorage } from 'firebase/storage';
 
 /**
  * Firebase project configuration.
- * Exported so it can be used by initializeFirebase in src/firebase/init.ts.
  */
 export const firebaseConfig = {
   "projectId": "studio-3066782500-b50dd",

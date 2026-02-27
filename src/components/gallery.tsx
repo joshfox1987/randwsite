@@ -32,8 +32,8 @@ export default function Gallery() {
 
   // Sort images locally
   const firestoreImages = rawImages ? [...rawImages].sort((a, b) => {
-    const timeA = a.uploadedAt?.toMillis?.() || a.uploadedAt || 0;
-    const timeB = b.uploadedAt?.toMillis?.() || b.uploadedAt || 0;
+    const timeA = a.uploadedAt?.toMillis?.() || new Date(a.uploadedAt).getTime() || 0;
+    const timeB = b.uploadedAt?.toMillis?.() || new Date(b.uploadedAt).getTime() || 0;
     return timeB - timeA;
   }) : null;
 
@@ -65,18 +65,14 @@ export default function Gallery() {
         const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
         const storageRef = ref(storage, `gallery_images/${fileName}`);
         
-        console.log(`Starting upload for: ${fileName}`);
-        
         // 1. Upload to Storage
-        const uploadResult = await uploadBytes(storageRef, file);
-        console.log('Upload successful:', uploadResult);
-        
+        await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
         // 2. Add metadata to Firestore
         await addDoc(collection(firestore, 'gallery_images'), {
           imageUrl: downloadURL,
-          url: downloadURL, // Compatibility with sync script
+          url: downloadURL,
           description: file.name.replace(/\.[^/.]+$/, ""),
           uploadedAt: serverTimestamp(),
           uploaderUid: user?.uid || 'anonymous',
@@ -88,14 +84,12 @@ export default function Gallery() {
         toast({ 
           variant: 'destructive', 
           title: 'Upload Failed', 
-          description: error.message || `Could not upload ${file.name}. Check console for details.` 
+          description: error.message || `Could not upload ${file.name}.` 
         });
       }
     }
 
-    if (inputFileRef.current) {
-        inputFileRef.current.value = '';
-    }
+    if (inputFileRef.current) inputFileRef.current.value = '';
     setIsUploading(false);
   };
 
@@ -117,7 +111,7 @@ export default function Gallery() {
             Cinematic Gallery
           </h2>
           <p className="text-muted-foreground max-w-[600px]">
-            Your trusted partner for home repair, restoration, and debris removal.
+            Showcasing our expert property restoration and debris removal projects.
           </p>
           
           <div className="pt-4 flex gap-4">
@@ -141,9 +135,9 @@ export default function Gallery() {
         {firestoreError && (
             <Alert variant="destructive" className="max-w-2xl mx-auto mb-8">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Database Connection</AlertTitle>
+                <AlertTitle>Permission Error</AlertTitle>
                 <AlertDescription>
-                    We are having trouble connecting to the database. Your images may not load immediately.
+                    Unable to load images. We have updated the rules to fix this—please refresh the page.
                 </AlertDescription>
             </Alert>
         )}
@@ -155,8 +149,8 @@ export default function Gallery() {
             <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4 p-8 text-center">
               <ImagePlus className="h-20 w-20 opacity-20" />
               <div className="space-y-4">
-                  <p className="text-xl font-semibold text-white">Your Gallery is Ready</p>
-                  <p className="text-sm">Click "Add Project Photos" to start building your portfolio.</p>
+                  <p className="text-xl font-semibold text-white">Cinematic Gallery is Ready</p>
+                  <p className="text-sm">Please run <code>./add_images.sh</code> to sync your storage photos.</p>
               </div>
             </div>
           ) : (
