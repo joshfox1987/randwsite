@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { collectLeadInformation } from '@/ai/flows/ai-chatbot-lead-collection';
 import type { CollectLeadInformationOutput } from '@/ai/flows/ai-chatbot-lead-collection';
 import { saveLead, saveReview } from '@/services/firestore';
+import { describeImageFlow } from '@/ai/flows/describe-image-flow';
 
 const reviewSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -49,4 +50,14 @@ export async function sendChatMessage(
   }
 
   return aiResponse;
+}
+
+export async function describeImage(imageUrl: string) {
+  try {
+    const description = await describeImageFlow({ imageUrl });
+    return { success: true, description };
+  } catch (error) {
+    console.error('Error describing image:', error);
+    return { success: false, error: 'Failed to describe image' };
+  }
 }

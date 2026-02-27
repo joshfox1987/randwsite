@@ -6,10 +6,11 @@ import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle } fr
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useStorage, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { describeImage } from '@/app/actions';
 
 export default function Gallery() {
   const firestore = useFirestore();
@@ -65,15 +66,25 @@ export default function Gallery() {
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
-        await addDoc(collection(firestore, 'gallery_images'), {
+        const docRef = await addDoc(collection(firestore, 'gallery_images'), {
           imageUrl: downloadURL,
           url: downloadURL,
-          description: file.name.replace(/\.[^/.]+$/, ""),
+          description: 'Analyzing image...',
           uploadedAt: serverTimestamp(),
           uploaderUid: user?.uid || 'anonymous',
         });
 
-        toast({ title: 'Success', description: `${file.name} added to gallery.` });
+        toast({ title: 'Success', description: `${file.name} uploaded. AI is analyzing...` });
+
+        // Trigger AI analysis
+        describeImage(downloadURL).then(async (result) => {
+          if (result.success && result.description) {
+            await updateDoc(doc(firestore, 'gallery_images', docRef.id), {
+              description: result.description
+            });
+          }
+        });
+
       } catch (error: any) {
         console.error('Upload failed:', error);
         toast({ 
@@ -150,32 +161,40 @@ export default function Gallery() {
             </div>
           ) : (
             <>
-              {firestoreImages.map((image, index) => (
-                <div
-                  key={image.id}
-                  className={cn(
-                    "absolute inset-0 transition-opacity duration-1000 ease-in-out",
-                    index === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0"
-                  )}
-                  onMouseEnter={() => setIsPaused(true)}
-                  onMouseLeave={() => setIsPaused(false)}
-                >
-                  <Image
-                    src={image.imageUrl || image.url}
-                    alt={image.description || 'R & W Project'}
-                    fill
-                    className="object-cover"
-                    priority={index === currentIndex}
-                    sizes="(max-width: 1280px) 100vw, 1280px"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                  <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
-                     <p className="text-white text-xl md:text-3xl font-headline font-bold drop-shadow-md">
-                        {image.description || 'Completed Project'}
-                     </p>
+              {firestoreImages.map((image, index) => {
+                const isActive = index === currentIndex;
+                const isNext = index === (currentIndex + 1) % firestoreImages.length;
+                const isPrev = index === (currentIndex - 1 + firestoreImages.length) % firestoreImages.length;
+                
+                return (
+                  <div
+                    key={image.id}
+                    className={cn(
+                      "absolute inset-0 transition-opacity duration-1000 ease-in-out",
+                      isActive ? "opacity-100 z-10" : "opacity-0 z-0"
+                    )}
+                    onMouseEnter={() => setIsPaused(true)}
+                    onMouseLeave={() => setIsPaused(false)}
+                  >
+                    <Image
+                      src={image.imageUrl || image.url}
+                      alt={image.description || 'R & W Project'}
+                      fill
+                      className="object-cover"
+                      priority={isActive}
+                      loading={isActive || isNext || isPrev ? "eager" : "lazy"}
+                      sizes="(max-width: 1280px) 100vw, 1280px"
+                      quality={75}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
+                       <p className="text-white text-xl md:text-3xl font-headline font-bold drop-shadow-md">
+                          {image.description || 'Completed Project'}
+                       </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               <button
                 onClick={prevSlide}
