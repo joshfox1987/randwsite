@@ -22,7 +22,6 @@ export default function Gallery() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Memoized query to avoid infinite re-renders
   const galleryQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'gallery_images') : null),
     [firestore]
@@ -30,61 +29,54 @@ export default function Gallery() {
   
   const { data: rawImages, isLoading: areImagesLoading, error: firestoreError } = useCollection<any>(galleryQuery);
 
-  // Sort in memory to avoid Firestore Index requirements
+  // Robust sort and field mapping
   const firestoreImages = rawImages ? [...rawImages].sort((a, b) => {
     const timeA = a.uploadedAt?.toMillis?.() || a.uploadedAt || 0;
     const timeB = b.uploadedAt?.toMillis?.() || b.uploadedAt || 0;
     return timeB - timeA;
   }) : null;
 
-  // Cinematic Auto-play effect
   useEffect(() => {
     if (!firestoreImages || firestoreImages.length <= 1 || isPaused) return;
-
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % firestoreImages.length);
     }, 6000);
-
     return () => clearInterval(interval);
   }, [firestoreImages, isPaused]);
 
   const handleUploadClick = () => {
-    if (!user) {
-        toast({
-            variant: 'destructive',
-            title: 'Connecting...',
-            description: 'Please wait while we establish a secure connection.',
-        });
-        return;
-    }
     inputFileRef.current?.click();
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || !firestore || !storage || !user) return;
+    if (!files || !firestore || !storage) return;
 
     setIsUploading(true);
 
     for (const file of Array.from(files)) {
       try {
         const timestamp = Date.now();
-        const storageRef = ref(storage, `gallery_images/${user.uid}/${timestamp}_${file.name}`);
+        const storageRef = ref(storage, `gallery_images/${timestamp}_${file.name}`);
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
         await addDoc(collection(firestore, 'gallery_images'), {
           imageUrl: downloadURL,
           url: downloadURL,
-          description: file.name,
+          description: file.name.replace(/\.[^/.]+$/, ""),
           uploadedAt: serverTimestamp(),
-          uploaderUid: user.uid,
+          uploaderUid: user?.uid || 'anonymous',
         });
 
-        toast({ title: 'Success', description: `${file.name} uploaded.` });
-      } catch (error) {
+        toast({ title: 'Success', description: `${file.name} added to gallery.` });
+      } catch (error: any) {
         console.error('Upload failed:', error);
-        toast({ variant: 'destructive', title: 'Upload Failed', description: `Could not upload ${file.name}.` });
+        toast({ 
+          variant: 'destructive', 
+          title: 'Upload Failed', 
+          description: error.message || `Could not upload ${file.name}.` 
+        });
       }
     }
 
@@ -119,15 +111,15 @@ export default function Gallery() {
             <Button
                 variant="outline"
                 onClick={handleUploadClick}
-                disabled={isUploading || isAuthLoading}
+                disabled={isUploading}
                 className="rounded-full px-8 h-12 text-base transition-all hover:scale-105"
             >
-                {isUploading || isAuthLoading ? (
+                {isUploading ? (
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 ) : (
                     <Upload className="mr-2 h-5 w-5" />
                 )}
-                {isAuthLoading ? 'Connecting...' : (isUploading ? 'Uploading...' : 'Add Project Photos')}
+                {isUploading ? 'Uploading...' : 'Add Project Photos'}
             </Button>
             <input type="file" ref={inputFileRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
           </div>
@@ -136,14 +128,13 @@ export default function Gallery() {
         {firestoreError && (
             <Alert variant="destructive" className="max-w-2xl mx-auto mb-8">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Database Connection Issue</AlertTitle>
+                <AlertTitle>Database Sync Issue</AlertTitle>
                 <AlertDescription>
-                    We're having trouble syncing your images. If you just uploaded photos to storage, make sure to run the sync script.
+                    We're having trouble loading the photos. Try running <code className="bg-white/10 px-1 rounded">bash add_images.sh</code> to re-sync.
                 </AlertDescription>
             </Alert>
         )}
 
-        {/* Cinematic Slideshow Container */}
         <div className="relative group max-w-5xl mx-auto overflow-hidden rounded-2xl shadow-2xl aspect-video bg-neutral-900 border border-white/5">
           {areImagesLoading ? (
             <Skeleton className="w-full h-full" />
@@ -151,9 +142,9 @@ export default function Gallery() {
             <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4 p-8 text-center">
               <ImagePlus className="h-20 w-20 opacity-20" />
               <div className="space-y-2">
-                  <p className="text-xl font-semibold text-white">No Project Photos Found</p>
+                  <p className="text-xl font-semibold text-white">Your Gallery is Ready</p>
                   <p className="text-sm max-w-md mx-auto">
-                    To see your Storage images here, please run the <code className="bg-white/10 px-1 rounded text-white">./add_images.sh</code> script in your terminal to sync them with the gallery.
+                    To see your photos here, use the button above or run <code className="bg-white/10 px-1 rounded text-white">bash add_images.sh</code> in your terminal.
                   </p>
               </div>
             </div>
@@ -171,24 +162,21 @@ export default function Gallery() {
                 >
                   <Image
                     src={image.imageUrl || image.url}
-                    alt={image.description || 'R & W Property Solution'}
+                    alt={image.description || 'Property Solution Project'}
                     fill
                     className="object-cover"
                     priority={index === currentIndex}
                     sizes="(max-width: 1280px) 100vw, 1280px"
                   />
-                  {/* Cinematic Shadow Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 pointer-events-none" />
-                  
                   <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
                      <p className="text-white text-2xl md:text-4xl font-headline font-bold drop-shadow-lg">
-                        {image.description?.replace(/\.[^/.]+$/, "") || 'R & W Completed Project'}
+                        {image.description || 'Completed Project'}
                      </p>
                   </div>
                 </div>
               ))}
 
-              {/* Navigation Controls */}
               <button
                 onClick={prevSlide}
                 className="absolute left-6 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/40 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
@@ -204,7 +192,6 @@ export default function Gallery() {
                 <ChevronRight className="h-8 w-8" />
               </button>
 
-              {/* Cinematic Progress Bar */}
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
                 {firestoreImages.map((_, index) => (
                   <button

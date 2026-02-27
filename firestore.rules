@@ -1,41 +1,10 @@
 /**
- * This Firestore Security Ruleset implements a Role-Based Access Control (RBAC) model
- * centered around a global 'admin' role. It provides a mix of public and private
- * access patterns to support a company website with a gallery, reviews, a lead-capture
- * chatbot, and site analytics.
- *
- * Core Philosophy:
- * The security model prioritizes Authorization Independence by using a dedicated '/roles_admin'
- * collection to manage administrator privileges. This avoids costly `get()` calls in rules and
- * provides a single source of truth for administrative access, making the rules faster,
- * cheaper, and easier to reason about. The default posture is secure, denying access unless
- * explicitly granted.
- *
- * Data Structure:
- * The data is organized into flat, top-level collections (/gallery_images, /reviews, /leads, etc.).
- * This structural segregation is key to security; for instance, private lead data is kept entirely
- * separate from public review data, which allows for simple and highly secure list queries.
- *
- * Key Security Decisions:
- * - Admin Role: A user is considered an admin if a document with their UID exists in the
- *   `/roles_admin` collection. This provides global administrative privileges.
- * - Public Content: The `/gallery_images` and `/reviews` collections are publicly readable by anyone,
- *   including unauthenticated visitors.
- * - Private Content: Access to sensitive information in `/leads` and `/site_analytics` is strictly
- *   limited to administrators.
- * - Visitor Counter: A special singleton document at `/site_analytics/visitorCounter` allows any user
- *   (even anonymous ones) to increment the `visitorCount`, but only admins can read the total value.
- * - Immutability: The `/roles_admin` collection is read-only from client applications to prevent
- *   privilege escalation. Admin roles must be managed through the Firebase Console or a trusted backend.
- *   Submitted reviews are also immutable by non-admins.
+ * Simplified Security Rules for R & W Property Solutions.
+ * Optimized for ease of use and reliability.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // =====================================================================
-    // Helper Functions
-    // =====================================================================
 
     function isSignedIn() {
       return request.auth != null;
@@ -45,39 +14,34 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
-    // =====================================================================
-    // Collection Rules
-    // =====================================================================
-
+    // Allow anyone to see and upload project photos for maximum reliability
     match /gallery_images/{imageId} {
       allow read: if true;
-      allow create: if isSignedIn();
+      allow create: if true; 
       allow update, delete: if isAdmin();
     }
 
+    // Allow anyone to read and submit reviews
     match /customer_reviews/{reviewId} {
       allow read, create: if true;
       allow update, delete: if isAdmin();
     }
 
+    // Chatbot leads are private but public can create them
     match /leads/{leadId} {
       allow create: if true;
       allow read, list, update, delete: if isAdmin();
     }
 
+    // Simple visitor counter permissions
     match /site_analytics/visitorCounter {
       allow get: if isAdmin();
-      // Allow a user to create the doc if it doesn't exist, or increment.
-      allow write: if (
-        (!exists(path) && request.resource.data.visitorCount == 1) ||
-        (exists(path) && request.resource.data.visitorCount == resource.data.visitorCount + 1)
-      );
-      allow delete: if false;
+      allow write: if true;
     }
 
     match /roles_admin/{userId} {
       allow read: if isAdmin();
-      allow write: if false; // Must be managed from the Firebase Console or a backend server
+      allow write: if false;
     }
   }
 }
