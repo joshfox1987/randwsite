@@ -1,36 +1,10 @@
 /**
- * Extremely permissive rules for R & W Property Solutions to resolve setup issues.
- * These rules allow the public to read and write to the gallery and reviews.
+ * Completely open Firestore rules to resolve permission issues.
+ * This allows anyone to read and write to any collection.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Allow everything for gallery and reviews to unblock the user
-    match /gallery_images/{imageId} {
-      allow read, write: if true;
-    }
-
-    match /customer_reviews/{reviewId} {
-      allow read, write: if true;
-    }
-
-    // Leads are still private but anyone can create them
-    match /leads/{leadId} {
-      allow create: if true;
-      allow read, write: if true; // Temporarily open for debugging
-    }
-
-    // Analytics and Roles
-    match /site_analytics/{any} {
-      allow read, write: if true;
-    }
-
-    match /roles_admin/{any} {
-      allow read, write: if true;
-    }
-
-    // Fallback for any other path
     match /{document=**} {
       allow read, write: if true;
     }

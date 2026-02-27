@@ -9,11 +9,11 @@ echo "Starting image sync for project: ${PROJECT_ID}..."
 
 # Get the list of images from the root of the storage bucket
 # Using gsutil which is the most reliable way for bulk operations
-IMAGES=$(gsutil ls gs://${BUCKET_NAME}/)
+IMAGES=$(gsutil ls gs://${BUCKET_NAME}/gallery_images/ 2>/dev/null || gsutil ls gs://${BUCKET_NAME}/)
 
 if [ -z "$IMAGES" ]; then
     echo "No images found in gs://${BUCKET_NAME}/"
-    echo "Please upload images to your storage bucket first."
+    echo "Please upload images to your storage bucket first via the website or gsutil."
     exit 1
 fi
 
@@ -31,10 +31,11 @@ do
   IMAGE_NAME=$(basename $IMAGE)
   
   # Clean up the name for the description (remove extension)
-  DESCRIPTION=$(echo "$IMAGE_NAME" | cut -f 1 -d '.')
+  DESCRIPTION=$(echo "$IMAGE_NAME" | cut -f 1 -d '.' | tr '_' ' ')
 
   # Construct the public URL for Firebase Storage
-  IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${IMAGE_NAME}?alt=media"
+  # Note: The 'alt=media' trick works for public buckets
+  IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/gallery_images%2F${IMAGE_NAME}?alt=media"
 
   echo "Linking ${IMAGE_NAME}..."
 

@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useStorage, useCollection, useUser, useMemoFirebase } from '@/firebase';
@@ -16,7 +16,7 @@ export default function Gallery() {
   const storage = useStorage();
   const { toast } = useToast();
   const inputFileRef = useRef<HTMLInputElement>(null);
-  const { user, isUserLoading: isAuthLoading } = useUser();
+  const { user } = useUser();
 
   const [isUploading, setIsUploading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -30,14 +30,14 @@ export default function Gallery() {
   
   const { data: rawImages, isLoading: areImagesLoading, error: firestoreError } = useCollection<any>(galleryQuery);
 
-  // Filter and sort images locally to avoid needing manual Firestore Indexes
+  // Sort images locally
   const firestoreImages = rawImages ? [...rawImages].sort((a, b) => {
     const timeA = a.uploadedAt?.toMillis?.() || a.uploadedAt || 0;
     const timeB = b.uploadedAt?.toMillis?.() || b.uploadedAt || 0;
     return timeB - timeA;
   }) : null;
 
-  // Auto-playing cinematic slideshow logic
+  // Slideshow logic
   useEffect(() => {
     if (!firestoreImages || firestoreImages.length <= 1 || isPaused) return;
     const interval = setInterval(() => {
@@ -47,32 +47,36 @@ export default function Gallery() {
   }, [firestoreImages, isPaused]);
 
   const handleUploadClick = () => {
-    if (isAuthLoading || !user) {
-        toast({ title: "Authenticating", description: "Please wait a moment while we secure your connection..." });
-        return;
-    }
     inputFileRef.current?.click();
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || !firestore || !storage) return;
+    if (!files || !firestore || !storage) {
+        toast({ variant: 'destructive', title: 'Error', description: 'System not ready. Please refresh.' });
+        return;
+    }
 
     setIsUploading(true);
 
     for (const file of Array.from(files)) {
       try {
         const timestamp = Date.now();
-        const storageRef = ref(storage, `gallery_images/${timestamp}_${file.name}`);
+        const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const storageRef = ref(storage, `gallery_images/${fileName}`);
         
-        // Upload to Storage
-        await uploadBytes(storageRef, file);
+        console.log(`Starting upload for: ${fileName}`);
+        
+        // 1. Upload to Storage
+        const uploadResult = await uploadBytes(storageRef, file);
+        console.log('Upload successful:', uploadResult);
+        
         const downloadURL = await getDownloadURL(storageRef);
 
-        // Add metadata to Firestore
+        // 2. Add metadata to Firestore
         await addDoc(collection(firestore, 'gallery_images'), {
           imageUrl: downloadURL,
-          url: downloadURL,
+          url: downloadURL, // Compatibility with sync script
           description: file.name.replace(/\.[^/.]+$/, ""),
           uploadedAt: serverTimestamp(),
           uploaderUid: user?.uid || 'anonymous',
@@ -80,11 +84,11 @@ export default function Gallery() {
 
         toast({ title: 'Success', description: `${file.name} added to gallery.` });
       } catch (error: any) {
-        console.error('Upload failed:', error);
+        console.error('Upload process failed:', error);
         toast({ 
           variant: 'destructive', 
           title: 'Upload Failed', 
-          description: error.message || `Could not upload ${file.name}.` 
+          description: error.message || `Could not upload ${file.name}. Check console for details.` 
         });
       }
     }
@@ -106,21 +110,21 @@ export default function Gallery() {
   };
 
   return (
-    <section id="gallery" className="w-full bg-background py-24 md:py-32">
+    <section id="gallery" className="w-full bg-background py-24 md:py-32 border-t">
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
           <h2 className="font-headline text-3xl font-bold tracking-tighter sm:text-5xl">
             Cinematic Gallery
           </h2>
           <p className="text-muted-foreground max-w-[600px]">
-            Explore our latest property restoration and repair projects in high definition.
+            Your trusted partner for home repair, restoration, and debris removal.
           </p>
           
           <div className="pt-4 flex gap-4">
             <Button
                 variant="outline"
                 onClick={handleUploadClick}
-                disabled={isUploading || isAuthLoading}
+                disabled={isUploading}
                 className="rounded-full px-8 h-12 text-base transition-all hover:scale-105"
             >
                 {isUploading ? (
@@ -128,7 +132,7 @@ export default function Gallery() {
                 ) : (
                     <Upload className="mr-2 h-5 w-5" />
                 )}
-                {isUploading ? 'Uploading...' : isAuthLoading ? 'Authenticating...' : 'Add Project Photos'}
+                {isUploading ? 'Uploading...' : 'Add Project Photos'}
             </Button>
             <input type="file" ref={inputFileRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
           </div>
@@ -137,9 +141,9 @@ export default function Gallery() {
         {firestoreError && (
             <Alert variant="destructive" className="max-w-2xl mx-auto mb-8">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Database Sync Issue</AlertTitle>
+                <AlertTitle>Database Connection</AlertTitle>
                 <AlertDescription>
-                    We're having trouble loading the photos. Try running <code className="bg-white/10 px-1 rounded">bash add_images.sh</code> in your terminal to re-sync.
+                    We are having trouble connecting to the database. Your images may not load immediately.
                 </AlertDescription>
             </Alert>
         )}
@@ -152,12 +156,7 @@ export default function Gallery() {
               <ImagePlus className="h-20 w-20 opacity-20" />
               <div className="space-y-4">
                   <p className="text-xl font-semibold text-white">Your Gallery is Ready</p>
-                  <div className="space-y-2 text-sm max-w-md mx-auto">
-                    <p>To see your photos here, use the button above or run the sync script:</p>
-                    <div className="bg-black/50 p-3 rounded font-mono text-white flex items-center justify-center gap-2">
-                        <code>bash add_images.sh</code>
-                    </div>
-                  </div>
+                  <p className="text-sm">Click "Add Project Photos" to start building your portfolio.</p>
               </div>
             </div>
           ) : (
@@ -174,7 +173,7 @@ export default function Gallery() {
                 >
                   <Image
                     src={image.imageUrl || image.url}
-                    alt={image.description || 'Property Solution Project'}
+                    alt={image.description || 'R & W Project'}
                     fill
                     className="object-cover"
                     priority={index === currentIndex}
