@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useStorage, useCollection, useUser, useMemoFirebase } from '@/firebase';
@@ -22,6 +22,7 @@ export default function Gallery() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
+  // Memoize the gallery query to avoid re-renders and errors
   const galleryQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'gallery_images') : null),
     [firestore]
@@ -29,13 +30,14 @@ export default function Gallery() {
   
   const { data: rawImages, isLoading: areImagesLoading, error: firestoreError } = useCollection<any>(galleryQuery);
 
-  // Robust sort and field mapping
+  // Filter and sort images locally to avoid needing manual Firestore Indexes
   const firestoreImages = rawImages ? [...rawImages].sort((a, b) => {
     const timeA = a.uploadedAt?.toMillis?.() || a.uploadedAt || 0;
     const timeB = b.uploadedAt?.toMillis?.() || b.uploadedAt || 0;
     return timeB - timeA;
   }) : null;
 
+  // Auto-playing cinematic slideshow logic
   useEffect(() => {
     if (!firestoreImages || firestoreImages.length <= 1 || isPaused) return;
     const interval = setInterval(() => {
@@ -45,6 +47,10 @@ export default function Gallery() {
   }, [firestoreImages, isPaused]);
 
   const handleUploadClick = () => {
+    if (isAuthLoading || !user) {
+        toast({ title: "Authenticating", description: "Please wait a moment while we secure your connection..." });
+        return;
+    }
     inputFileRef.current?.click();
   };
 
@@ -58,9 +64,12 @@ export default function Gallery() {
       try {
         const timestamp = Date.now();
         const storageRef = ref(storage, `gallery_images/${timestamp}_${file.name}`);
+        
+        // Upload to Storage
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
+        // Add metadata to Firestore
         await addDoc(collection(firestore, 'gallery_images'), {
           imageUrl: downloadURL,
           url: downloadURL,
@@ -107,11 +116,11 @@ export default function Gallery() {
             Explore our latest property restoration and repair projects in high definition.
           </p>
           
-          <div className="pt-4">
+          <div className="pt-4 flex gap-4">
             <Button
                 variant="outline"
                 onClick={handleUploadClick}
-                disabled={isUploading}
+                disabled={isUploading || isAuthLoading}
                 className="rounded-full px-8 h-12 text-base transition-all hover:scale-105"
             >
                 {isUploading ? (
@@ -119,7 +128,7 @@ export default function Gallery() {
                 ) : (
                     <Upload className="mr-2 h-5 w-5" />
                 )}
-                {isUploading ? 'Uploading...' : 'Add Project Photos'}
+                {isUploading ? 'Uploading...' : isAuthLoading ? 'Authenticating...' : 'Add Project Photos'}
             </Button>
             <input type="file" ref={inputFileRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
           </div>
@@ -130,7 +139,7 @@ export default function Gallery() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Database Sync Issue</AlertTitle>
                 <AlertDescription>
-                    We're having trouble loading the photos. Try running <code className="bg-white/10 px-1 rounded">bash add_images.sh</code> to re-sync.
+                    We're having trouble loading the photos. Try running <code className="bg-white/10 px-1 rounded">bash add_images.sh</code> in your terminal to re-sync.
                 </AlertDescription>
             </Alert>
         )}
@@ -141,11 +150,14 @@ export default function Gallery() {
           ) : !firestoreImages || firestoreImages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4 p-8 text-center">
               <ImagePlus className="h-20 w-20 opacity-20" />
-              <div className="space-y-2">
+              <div className="space-y-4">
                   <p className="text-xl font-semibold text-white">Your Gallery is Ready</p>
-                  <p className="text-sm max-w-md mx-auto">
-                    To see your photos here, use the button above or run <code className="bg-white/10 px-1 rounded text-white">bash add_images.sh</code> in your terminal.
-                  </p>
+                  <div className="space-y-2 text-sm max-w-md mx-auto">
+                    <p>To see your photos here, use the button above or run the sync script:</p>
+                    <div className="bg-black/50 p-3 rounded font-mono text-white flex items-center justify-center gap-2">
+                        <code>bash add_images.sh</code>
+                    </div>
+                  </div>
               </div>
             </div>
           ) : (

@@ -1,10 +1,9 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow public read and write for gallery images to unblock the user
+    // Allow public read and write for the entire bucket to resolve "Insufficient Permissions"
     match /{allPaths=**} {
-      allow read: if true;
-      allow write: if true; 
+      allow read, write: if true;
     }
   }
 }

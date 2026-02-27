@@ -40,8 +40,9 @@ do
 
   # Add the image to Firestore. 
   # We write to both 'url' and 'imageUrl' for max compatibility with the UI.
-  gcloud firestore documents write "${COLLECTION_NAME}/${IMAGE_NAME}" \
+  gcloud firestore documents create \
     --project "${PROJECT_ID}" \
+    --collection="${COLLECTION_NAME}" \
     --values="url=${IMAGE_URL},imageUrl=${IMAGE_URL},description=${DESCRIPTION},uploadedAt=server_timestamp()"
 
 done
