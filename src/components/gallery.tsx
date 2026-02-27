@@ -22,7 +22,7 @@ export default function Gallery() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Memoized query to avoid infinite re-renders and meet hook requirements
+  // Memoized query to avoid infinite re-renders
   const galleryQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'gallery_images') : null),
     [firestore]
@@ -30,14 +30,14 @@ export default function Gallery() {
   
   const { data: rawImages, isLoading: areImagesLoading, error: firestoreError } = useCollection<any>(galleryQuery);
 
-  // Sort in memory to handle missing 'uploadedAt' gracefully and avoid Firestore Index requirements
+  // Sort in memory to avoid Firestore Index requirements
   const firestoreImages = rawImages ? [...rawImages].sort((a, b) => {
     const timeA = a.uploadedAt?.toMillis?.() || a.uploadedAt || 0;
     const timeB = b.uploadedAt?.toMillis?.() || b.uploadedAt || 0;
     return timeB - timeA;
   }) : null;
 
-  // Cinematic Auto-play effect: Fades images like a professional video reel
+  // Cinematic Auto-play effect
   useEffect(() => {
     if (!firestoreImages || firestoreImages.length <= 1 || isPaused) return;
 
@@ -75,7 +75,7 @@ export default function Gallery() {
 
         await addDoc(collection(firestore, 'gallery_images'), {
           imageUrl: downloadURL,
-          url: downloadURL, // Support both field names for maximum compatibility
+          url: downloadURL,
           description: file.name,
           uploadedAt: serverTimestamp(),
           uploaderUid: user.uid,

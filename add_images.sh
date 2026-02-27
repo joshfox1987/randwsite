@@ -8,7 +8,6 @@ COLLECTION_NAME="gallery_images"
 echo "Starting image sync for project: ${PROJECT_ID}..."
 
 # Get the list of images from the root of the storage bucket
-# If your images are in a folder, add the folder name (e.g., gs://${BUCKET_NAME}/folder/)
 IMAGES=$(gsutil ls gs://${BUCKET_NAME}/)
 
 if [ -z "$IMAGES" ]; then
@@ -30,7 +29,6 @@ do
   IMAGE_NAME=$(basename $IMAGE)
 
   # Construct the public URL for Firebase Storage
-  # Note: The %2F is the encoded '/' for the path
   IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${IMAGE_NAME}?alt=media"
 
   echo "Syncing ${IMAGE_NAME}..."
