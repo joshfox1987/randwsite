@@ -22,7 +22,7 @@ export default function Gallery() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Memoize the gallery query to avoid re-renders and errors
+  // Memoize the gallery query to avoid unnecessary re-renders
   const galleryQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'gallery_images') : null),
     [firestore]
@@ -30,19 +30,19 @@ export default function Gallery() {
   
   const { data: rawImages, isLoading: areImagesLoading, error: firestoreError } = useCollection<any>(galleryQuery);
 
-  // Sort images locally
+  // Filter and sort images locally for maximum reliability
   const firestoreImages = rawImages ? [...rawImages].sort((a, b) => {
     const timeA = a.uploadedAt?.toMillis?.() || new Date(a.uploadedAt).getTime() || 0;
     const timeB = b.uploadedAt?.toMillis?.() || new Date(b.uploadedAt).getTime() || 0;
     return timeB - timeA;
   }) : null;
 
-  // Slideshow logic
+  // Auto-playing cinematic slideshow logic
   useEffect(() => {
     if (!firestoreImages || firestoreImages.length <= 1 || isPaused) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % firestoreImages.length);
-    }, 6000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [firestoreImages, isPaused]);
 
@@ -52,10 +52,7 @@ export default function Gallery() {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || !firestore || !storage) {
-        toast({ variant: 'destructive', title: 'Error', description: 'System not ready. Please refresh.' });
-        return;
-    }
+    if (!files || !firestore || !storage) return;
 
     setIsUploading(true);
 
@@ -65,11 +62,9 @@ export default function Gallery() {
         const fileName = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
         const storageRef = ref(storage, `gallery_images/${fileName}`);
         
-        // 1. Upload to Storage
         await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(storageRef);
 
-        // 2. Add metadata to Firestore
         await addDoc(collection(firestore, 'gallery_images'), {
           imageUrl: downloadURL,
           url: downloadURL,
@@ -80,11 +75,11 @@ export default function Gallery() {
 
         toast({ title: 'Success', description: `${file.name} added to gallery.` });
       } catch (error: any) {
-        console.error('Upload process failed:', error);
+        console.error('Upload failed:', error);
         toast({ 
           variant: 'destructive', 
           title: 'Upload Failed', 
-          description: error.message || `Could not upload ${file.name}.` 
+          description: error.message || 'Could not upload image.' 
         });
       }
     }
@@ -104,9 +99,9 @@ export default function Gallery() {
   };
 
   return (
-    <section id="gallery" className="w-full bg-background py-24 md:py-32 border-t">
+    <section id="gallery" className="w-full bg-background py-16 md:py-24 border-t">
       <div className="container mx-auto px-4 md:px-6">
-        <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
+        <div className="flex flex-col items-center justify-center space-y-4 text-center mb-10">
           <h2 className="font-headline text-3xl font-bold tracking-tighter sm:text-5xl">
             Cinematic Gallery
           </h2>
@@ -119,7 +114,7 @@ export default function Gallery() {
                 variant="outline"
                 onClick={handleUploadClick}
                 disabled={isUploading}
-                className="rounded-full px-8 h-12 text-base transition-all hover:scale-105"
+                className="rounded-full px-8 h-12 transition-all hover:scale-105"
             >
                 {isUploading ? (
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -135,22 +130,22 @@ export default function Gallery() {
         {firestoreError && (
             <Alert variant="destructive" className="max-w-2xl mx-auto mb-8">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Permission Error</AlertTitle>
+                <AlertTitle>Connection Issue</AlertTitle>
                 <AlertDescription>
-                    Unable to load images. We have updated the rules to fix this—please refresh the page.
+                    Unable to reach the gallery database. Please refresh the page to reconnect.
                 </AlertDescription>
             </Alert>
         )}
 
-        <div className="relative group max-w-5xl mx-auto overflow-hidden rounded-2xl shadow-2xl aspect-video bg-neutral-900 border border-white/5">
+        <div className="relative group max-w-5xl mx-auto overflow-hidden rounded-2xl shadow-2xl aspect-video bg-neutral-950 border">
           {areImagesLoading ? (
             <Skeleton className="w-full h-full" />
           ) : !firestoreImages || firestoreImages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-white/40 space-y-4 p-8 text-center">
-              <ImagePlus className="h-20 w-20 opacity-20" />
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground space-y-4 p-8 text-center">
+              <ImagePlus className="h-16 w-16 opacity-20" />
               <div className="space-y-4">
-                  <p className="text-xl font-semibold text-white">Cinematic Gallery is Ready</p>
-                  <p className="text-sm">Please run <code>./add_images.sh</code> to sync your storage photos.</p>
+                  <p className="text-lg font-semibold">Your Gallery is Ready</p>
+                  <p className="text-sm">Run <code>bash add_images.sh</code> in your terminal to sync your Storage photos.</p>
               </div>
             </div>
           ) : (
@@ -159,8 +154,8 @@ export default function Gallery() {
                 <div
                   key={image.id}
                   className={cn(
-                    "absolute inset-0 transition-all duration-1000 ease-in-out",
-                    index === currentIndex ? "opacity-100 scale-100 z-10" : "opacity-0 scale-105 z-0"
+                    "absolute inset-0 transition-opacity duration-1000 ease-in-out",
+                    index === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0"
                   )}
                   onMouseEnter={() => setIsPaused(true)}
                   onMouseLeave={() => setIsPaused(false)}
@@ -173,9 +168,9 @@ export default function Gallery() {
                     priority={index === currentIndex}
                     sizes="(max-width: 1280px) 100vw, 1280px"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                   <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
-                     <p className="text-white text-2xl md:text-4xl font-headline font-bold drop-shadow-lg">
+                     <p className="text-white text-xl md:text-3xl font-headline font-bold drop-shadow-md">
                         {image.description || 'Completed Project'}
                      </p>
                   </div>
@@ -184,17 +179,17 @@ export default function Gallery() {
 
               <button
                 onClick={prevSlide}
-                className="absolute left-6 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/40 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
+                className="absolute left-6 top-1/2 -translate-y-1/2 z-20 p-2.5 rounded-full bg-black/40 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
                 aria-label="Previous"
               >
-                <ChevronLeft className="h-8 w-8" />
+                <ChevronLeft className="h-7 w-7" />
               </button>
               <button
                 onClick={nextSlide}
-                className="absolute right-6 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/40 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
+                className="absolute right-6 top-1/2 -translate-y-1/2 z-20 p-2.5 rounded-full bg-black/40 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
                 aria-label="Next"
               >
-                <ChevronRight className="h-8 w-8" />
+                <ChevronRight className="h-7 w-7" />
               </button>
 
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
@@ -203,8 +198,8 @@ export default function Gallery() {
                     key={index}
                     onClick={() => setCurrentIndex(index)}
                     className={cn(
-                      "h-1.5 transition-all duration-300 rounded-full",
-                      index === currentIndex ? "w-10 bg-primary" : "w-2 bg-white/30 hover:bg-white/50"
+                      "h-1 transition-all duration-300 rounded-full",
+                      index === currentIndex ? "w-10 bg-primary" : "w-2.5 bg-white/30 hover:bg-white/50"
                     )}
                   />
                 ))}

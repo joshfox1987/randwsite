@@ -7,8 +7,8 @@ COLLECTION_NAME="gallery_images"
 
 echo "Starting image sync for project: ${PROJECT_ID}..."
 
-# Get the list of images from the root of the storage bucket
-# Using gsutil which is the most reliable way for bulk operations
+# Get the list of images from the storage bucket
+# Using gsutil which is standard for storage operations
 IMAGES=$(gsutil ls gs://${BUCKET_NAME}/gallery_images/ 2>/dev/null || gsutil ls gs://${BUCKET_NAME}/)
 
 if [ -z "$IMAGES" ]; then
@@ -17,9 +17,17 @@ if [ -z "$IMAGES" ]; then
     exit 1
 fi
 
-echo "Found images. Syncing to Firestore..."
+echo "Found images. Fetching access token for Firestore..."
+TOKEN=$(gcloud auth print-access-token 2>/dev/null)
 
-# Loop through each image and add it to Firestore
+if [ -z "$TOKEN" ]; then
+    echo "Error: Could not retrieve an access token. Please run 'gcloud auth login' first."
+    exit 1
+fi
+
+echo "Syncing images to Firestore via REST API..."
+
+# Loop through each image and add it to Firestore using the REST API
 for IMAGE in $IMAGES
 do
   # Skip directories
@@ -28,28 +36,37 @@ do
   fi
 
   # Get the image file name
-  IMAGE_NAME=$(basename $IMAGE)
+  IMAGE_NAME=$(basename "$IMAGE")
   
-  # Clean up the name for the description (remove extension)
+  # Clean up the name for the description
   DESCRIPTION=$(echo "$IMAGE_NAME" | cut -f 1 -d '.' | tr '_' ' ')
 
   # Construct the public URL for Firebase Storage
-  IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/gallery_images%2F${IMAGE_NAME}?alt=media"
+  # We use the standard format for publicly readable storage files
+  ENCODED_NAME=$(echo "$IMAGE_NAME" | sed 's/ /%20/g')
   
-  # If it was in the root, handle that too
-  if [[ $IMAGE != *gallery_images* ]]; then
-    IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${IMAGE_NAME}?alt=media"
+  if [[ $IMAGE == *gallery_images* ]]; then
+    IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/gallery_images%2F${ENCODED_NAME}?alt=media"
+  else
+    IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${ENCODED_NAME}?alt=media"
   fi
 
   echo "Linking ${IMAGE_NAME}..."
 
-  # Add the image to Firestore using gcloud.
-  # We set both 'url' and 'imageUrl' for max compatibility.
-  gcloud firestore documents create \
-    --project "${PROJECT_ID}" \
-    --collection-path="${COLLECTION_NAME}" \
-    --data="{\"url\":\"${IMAGE_URL}\",\"imageUrl\":\"${IMAGE_URL}\",\"description\":\"${DESCRIPTION}\",\"uploadedAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+  # Create the document in Firestore using the REST API
+  # This is much more reliable than the gcloud firestore command
+  curl -s -X POST "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"fields\": {
+        \"url\": { \"stringValue\": \"${IMAGE_URL}\" },
+        \"imageUrl\": { \"stringValue\": \"${IMAGE_URL}\" },
+        \"description\": { \"stringValue\": \"${DESCRIPTION}\" },
+        \"uploadedAt\": { \"timestampValue\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" }
+      }
+    }" > /dev/null
 
 done
 
-echo "Sync complete! Refresh your website to see the gallery updated."
+echo "Sync complete! Refresh your website to see the cinematic gallery updated."
