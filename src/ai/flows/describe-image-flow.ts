@@ -12,7 +12,7 @@ export const describeImageFlow = ai.defineFlow(
       const response = await ai.generate({
         model: 'googleai/gemini-1.5-flash',
         prompt: [
-          { text: 'Describe this image in a single, professional sentence for a property restoration and debris removal business gallery. Focus on the work done or the quality of the result.' },
+          { text: 'Analyze this image for a property restoration and debris removal business gallery. Provide a response in the format "Title: Description". The title should be a 2-4 word catchy project name. The description should be a professional, high-impact sentence describing the work done or the quality of the result.' },
           { media: { url: input.imageUrl, contentType: 'image/jpeg' } },
         ],
       });
@@ -20,7 +20,7 @@ export const describeImageFlow = ai.defineFlow(
       return response.text;
     } catch (error) {
       console.error('Gemini AI error:', error);
-      return 'Completed property restoration project by R & W Property Solutions.';
+      return 'Project Highlight: Professional property restoration and debris removal service completed with precision.';
     }
   }
 );
