@@ -1,8 +1,5 @@
 // src/firebase/config.ts
 
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getStorage } from 'firebase/storage';
-
 /**
  * Firebase project configuration.
  * Explicitly exported for use in the app and server actions.
@@ -16,7 +13,3 @@ export const firebaseConfig = {
   "measurementId": "G-9V6L6XG6Y7",
   "messagingSenderId": "642303940569"
 };
-
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-
-export const storage = getStorage(app);

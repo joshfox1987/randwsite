@@ -1,7 +1,3 @@
-/**
- * Completely open Storage rules to resolve permission issues.
- * This allows anyone to read and write to any file in the bucket.
- */
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {

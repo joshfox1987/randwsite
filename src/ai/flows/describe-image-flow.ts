@@ -8,14 +8,19 @@ export const describeImageFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const response = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
-      prompt: [
-        { text: 'Describe this image in a single, professional sentence for a property restoration and debris removal business gallery. Focus on the work done or the quality of the result.' },
-        { media: { url: input.imageUrl, contentType: 'image/jpeg' } },
-      ],
-    });
+    try {
+      const response = await ai.generate({
+        model: 'googleai/gemini-1.5-flash',
+        prompt: [
+          { text: 'Describe this image in a single, professional sentence for a property restoration and debris removal business gallery. Focus on the work done or the quality of the result.' },
+          { media: { url: input.imageUrl, contentType: 'image/jpeg' } },
+        ],
+      });
 
-    return response.text;
+      return response.text;
+    } catch (error) {
+      console.error('Gemini AI error:', error);
+      return 'Completed property restoration project by R & W Property Solutions.';
+    }
   }
 );
