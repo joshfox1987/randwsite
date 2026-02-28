@@ -8,8 +8,8 @@ COLLECTION_NAME="gallery_images"
 echo "Starting image sync for project: ${PROJECT_ID}..."
 
 # Get the list of images from the storage bucket
-# Using gsutil which is standard for storage operations
-IMAGES=$(gsutil ls gs://${BUCKET_NAME}/gallery_images/ 2>/dev/null || gsutil ls gs://${BUCKET_NAME}/)
+# Using gsutil to list all files recursively
+IMAGES=$(gsutil ls gs://${BUCKET_NAME}/** 2>/dev/null)
 
 if [ -z "$IMAGES" ]; then
     echo "No images found in gs://${BUCKET_NAME}/"
@@ -25,9 +25,8 @@ if [ -z "$TOKEN" ]; then
     exit 1
 fi
 
-echo "Syncing images to Firestore via REST API..."
+echo "Syncing images to Firestore via REST API (this is more reliable than gcloud)..."
 
-# Loop through each image and add it to Firestore using the REST API
 for IMAGE in $IMAGES
 do
   # Skip directories
@@ -41,20 +40,16 @@ do
   # Clean up the name for the description
   DESCRIPTION=$(echo "$IMAGE_NAME" | cut -f 1 -d '.' | tr '_' ' ')
 
-  # Construct the public URL for Firebase Storage
-  # We use the standard format for publicly readable storage files
-  ENCODED_NAME=$(echo "$IMAGE_NAME" | sed 's/ /%20/g')
+  # Get the path within the bucket (encoded for the URL)
+  PATH_PART=$(echo "$IMAGE" | sed "s|gs://${BUCKET_NAME}/||")
+  ENCODED_PATH=$(echo "$PATH_PART" | sed 's|/|%2F|g' | sed 's/ /%20/g')
   
-  if [[ $IMAGE == *gallery_images* ]]; then
-    IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/gallery_images%2F${ENCODED_NAME}?alt=media"
-  else
-    IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${ENCODED_NAME}?alt=media"
-  fi
+  # Construct the public URL for Firebase Storage
+  IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${ENCODED_PATH}?alt=media"
 
   echo "Linking ${IMAGE_NAME}..."
 
   # Create the document in Firestore using the REST API
-  # This is much more reliable than the gcloud firestore command
   curl -s -X POST "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \

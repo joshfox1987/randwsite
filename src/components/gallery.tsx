@@ -12,10 +12,6 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { describeImage } from '@/app/actions';
 
-/**
- * GalleryImage component handles individual image loading states and optimizations.
- * Uses memo to prevent unnecessary re-renders of non-active slides.
- */
 const GalleryImage = memo(({ image, isActive, isPriority }: { image: any, isActive: boolean, isPriority: boolean }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const imageUrl = image.imageUrl || image.url;
@@ -34,7 +30,7 @@ const GalleryImage = memo(({ image, isActive, isPriority }: { image: any, isActi
         alt={image.description || 'R & W Project'}
         fill
         className={cn(
-          "object-cover transition-all duration-700",
+          "object-cover transition-all duration-1000",
           isLoaded ? "scale-100 blur-0" : "scale-105 blur-lg"
         )}
         onLoad={() => setIsLoaded(true)}
@@ -45,7 +41,7 @@ const GalleryImage = memo(({ image, isActive, isPriority }: { image: any, isActi
       
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
       
-      <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 transform transition-transform duration-700 delay-100">
+      <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 transform transition-transform duration-1000 delay-100">
          <p className={cn(
            "text-white text-xl md:text-3xl font-headline font-bold drop-shadow-lg transition-all duration-1000",
            isActive ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
@@ -78,18 +74,17 @@ export default function Gallery() {
   
   const { data: rawImages, isLoading: areImagesLoading, error: firestoreError } = useCollection<any>(galleryQuery);
 
-  // Filter and sort images locally to be robust against missing fields or missing indexes
+  // Robust filtering and sorting
   const firestoreImages = rawImages ? [...rawImages].sort((a, b) => {
-    const timeA = a.uploadedAt?.toMillis?.() || new Date(a.uploadedAt).getTime() || 0;
-    const timeB = b.uploadedAt?.toMillis?.() || new Date(b.uploadedAt).getTime() || 0;
-    return timeB - timeA;
+    const getVal = (v: any) => v?.toMillis?.() || new Date(v).getTime() || 0;
+    return getVal(b.uploadedAt) - getVal(a.uploadedAt);
   }) : null;
 
   useEffect(() => {
     if (!firestoreImages || firestoreImages.length <= 1 || isPaused) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % firestoreImages.length);
-    }, 6000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [firestoreImages, isPaused]);
 
@@ -188,12 +183,12 @@ export default function Gallery() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Connection Issue</AlertTitle>
                 <AlertDescription>
-                    Unable to reach the gallery database. Please refresh the page to reconnect.
+                    Unable to reach the gallery database. Please refresh to reconnect.
                 </AlertDescription>
             </Alert>
         )}
 
-        <div className="relative group max-w-5xl mx-auto overflow-hidden rounded-2xl shadow-2xl aspect-video bg-neutral-900 border">
+        <div className="relative group max-w-5xl mx-auto overflow-hidden rounded-2xl shadow-2xl aspect-video bg-neutral-900 border" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
           {areImagesLoading ? (
             <Skeleton className="w-full h-full" />
           ) : !firestoreImages || firestoreImages.length === 0 ? (
@@ -201,7 +196,7 @@ export default function Gallery() {
               <ImagePlus className="h-16 w-16 opacity-20" />
               <div className="space-y-4">
                   <p className="text-lg font-semibold">Gallery is empty</p>
-                  <p className="text-sm">Please run <code>bash add_images.sh</code> to sync your images.</p>
+                  <p className="text-sm">To see your Storage images here, please run the <code>bash add_images.sh</code> script in your terminal.</p>
               </div>
             </div>
           ) : (
