@@ -2,6 +2,7 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
+      // Fully open rules for development and sync purposes
       allow read, write: if true;
     }
   }
