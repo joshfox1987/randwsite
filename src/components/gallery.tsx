@@ -71,7 +71,7 @@ const GalleryImage = memo(({ image, isActive, isPriority }: { image: any, isActi
         onLoad={() => setIsLoaded(true)}
         priority={isPriority}
         sizes="100vw"
-        quality={90}
+        quality={95}
       />
       
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
