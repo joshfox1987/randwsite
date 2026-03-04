@@ -40,11 +40,14 @@ do
   ENCODED_NAME=$(echo "$IMAGE_NAME" | sed 's/ /%20/g')
   IMAGE_URL="https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${ENCODED_NAME}?alt=media"
 
-  echo "Linking: ${IMAGE_NAME}..."
+  # Create a unique document ID from the image name to prevent duplicates (idempotency)
+  DOC_ID=$(echo "$IMAGE_NAME" | sed 's/[^a-zA-Z0-9]/_/g')
 
-  # Use the REST API to create the Firestore document. This bypasses 'gcloud' version errors.
-  # We populate both 'url' and 'imageUrl' to ensure total compatibility with the gallery.
-  curl -s -X POST "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}" \
+  echo "Syncing: ${IMAGE_NAME}..."
+
+  # Use the REST API with PATCH to update or create (upsert) the document by ID.
+  # This prevents the "244 images" problem by ensuring each photo only has ONE database record.
+  curl -s -X PATCH "https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}/${DOC_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -d "{

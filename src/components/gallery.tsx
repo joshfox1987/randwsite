@@ -2,10 +2,10 @@
 import { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle, Trash2, Eraser } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useStorage, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, serverTimestamp, addDoc, updateDoc, doc, deleteDoc, query } from 'firebase/firestore';
+import { collection, serverTimestamp, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -71,7 +71,7 @@ const GalleryImage = memo(({ image, isActive, isPriority }: { image: any, isActi
         onLoad={() => setIsLoaded(true)}
         priority={isPriority}
         sizes="100vw"
-        quality={95}
+        quality={95} // Matches images.qualities in next.config.js [25, 50, 75, 85, 95, 100]
       />
       
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
@@ -108,8 +108,6 @@ export default function Gallery() {
   const [isPaused, setIsPaused] = useState(false);
   const [showAdminControls, setShowAdminControls] = useState(false);
 
-  // We remove orderBy from the query to avoid "Missing Index" errors that look like permission errors.
-  // We will sort manually in the component for maximum reliability.
   const galleryQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'gallery_images') : null),
     [firestore]
@@ -117,7 +115,6 @@ export default function Gallery() {
   
   const { data: rawImages, isLoading: areImagesLoading, error: firestoreError } = useCollection<any>(galleryQuery);
 
-  // Sort images on the client side to avoid Firestore index requirements
   const firestoreImages = useMemo(() => {
     if (!rawImages) return [];
     return [...rawImages].sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -213,6 +210,21 @@ export default function Gallery() {
     }
   };
 
+  const clearGallery = async () => {
+    if (!firestore || !window.confirm('WARNING: This will permanently remove ALL images from the gallery. Continue?')) return;
+    setIsUploading(true);
+    try {
+      // Loop through and delete each document. Since we have open rules, this will work.
+      const deletePromises = firestoreImages.map(img => deleteDoc(doc(firestore, 'gallery_images', img.id)));
+      await Promise.all(deletePromises);
+      toast({ title: 'Gallery Cleared', description: 'All records have been removed. You can now run the sync script.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not clear gallery. Check connection.' });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <section id="gallery" className="w-full bg-background py-20 border-t">
       <div className="container mx-auto px-4 md:px-6">
@@ -237,13 +249,27 @@ export default function Gallery() {
                 {isUploading ? 'Optimizing...' : 'Elevate New Photos'}
             </Button>
             
-            <Button
-                variant="outline"
-                onClick={() => setShowAdminControls(!showAdminControls)}
-                className="rounded-full px-10 h-14 text-lg"
-            >
-                {showAdminControls ? 'View Experience' : 'Manage Gallery'}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                  variant="outline"
+                  onClick={() => setShowAdminControls(!showAdminControls)}
+                  className="rounded-full px-10 h-14 text-lg"
+              >
+                  {showAdminControls ? 'View Experience' : 'Manage Gallery'}
+              </Button>
+              {showAdminControls && (
+                 <Button
+                    variant="destructive"
+                    onClick={clearGallery}
+                    disabled={isUploading}
+                    className="rounded-full px-6 h-14 text-lg"
+                    title="Clear all duplicates"
+                >
+                    <Eraser className="mr-2 h-5 w-5" />
+                    Clear All
+                </Button>
+              )}
+            </div>
             
             <input type="file" ref={inputFileRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
           </div>
