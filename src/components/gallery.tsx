@@ -2,10 +2,10 @@
 import { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle, Trash2, Eraser } from 'lucide-react';
+import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useStorage, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, serverTimestamp, updateDoc, doc, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, updateDoc, doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -50,7 +50,6 @@ const compressImage = (file: File, maxWidth = 1600, quality = 0.85): Promise<Blo
 
 const GalleryImage = memo(({ image, isActive, isPriority }: { image: any, isActive: boolean, isPriority: boolean }) => {
   const [isLoaded, setIsLoaded] = useState(false);
-  // Support both url formats for sync script compatibility
   const imageUrl = image.imageUrl || image.url;
 
   if (!imageUrl) return null;
@@ -106,7 +105,6 @@ export default function Gallery() {
   const [isUploading, setIsUploading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [showAdminControls, setShowAdminControls] = useState(false);
 
   const galleryQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'gallery_images') : null),
@@ -121,12 +119,12 @@ export default function Gallery() {
   }, [rawImages]);
 
   useEffect(() => {
-    if (!firestoreImages || firestoreImages.length <= 1 || isPaused || showAdminControls) return;
+    if (!firestoreImages || firestoreImages.length <= 1 || isPaused) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % firestoreImages.length);
     }, 7000);
     return () => clearInterval(interval);
-  }, [firestoreImages, isPaused, showAdminControls]);
+  }, [firestoreImages, isPaused]);
 
   const handleUploadClick = () => {
     inputFileRef.current?.click();
@@ -147,7 +145,6 @@ export default function Gallery() {
       const file = files[i];
       try {
         const compressedBlob = await compressImage(file);
-        // Create a unique ID from the filename to prevent duplicates
         const cleanName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
         const fileName = `${Date.now()}_${cleanName}`;
         const docId = `upload_${cleanName}`;
@@ -160,14 +157,13 @@ export default function Gallery() {
         await setDoc(docRef, {
           imageUrl: downloadURL,
           url: downloadURL,
-          title: 'New Transformation',
+          title: 'Property Update',
           description: 'A masterpiece in progress by R & W Property Solutions.',
           uploadedAt: serverTimestamp(),
           uploaderUid: user?.uid || 'anonymous',
           order: startOrder + i
         });
 
-        // Trigger AI analysis for details and name
         describeImage(downloadURL).then(async (result) => {
           if (result.success && result.description) {
             const parts = result.description.split(':');
@@ -205,32 +201,6 @@ export default function Gallery() {
     setCurrentIndex((prev) => (prev === 0 ? firestoreImages.length - 1 : prev - 1));
   }, [firestoreImages]);
 
-  const deleteImage = async (id: string) => {
-    if (!firestore || !window.confirm('Delete this project from gallery?')) return;
-    try {
-      await deleteDoc(doc(firestore, 'gallery_images', id));
-      toast({ title: 'Removed' });
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error' });
-    }
-  };
-
-  const clearGallery = async () => {
-    if (!firestore || !window.confirm('WARNING: This will permanently remove ALL images from the gallery. Continue?')) return;
-    setIsUploading(true);
-    try {
-      const deletePromises = firestoreImages.map(img => deleteDoc(doc(firestore, 'gallery_images', img.id)));
-      await Promise.all(deletePromises);
-      toast({ title: 'Gallery Cleared', description: 'All records have been removed. You can now run the sync script.' });
-      setCurrentIndex(0);
-    } catch (error) {
-      console.error('Clear Error:', error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not clear gallery. Check connection.' });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   return (
     <section id="gallery" className="w-full bg-background py-20 border-t">
       <div className="container mx-auto px-4 md:px-6">
@@ -255,28 +225,6 @@ export default function Gallery() {
                 {isUploading ? 'Optimizing...' : 'Elevate New Photos'}
             </Button>
             
-            <div className="flex gap-2">
-              <Button
-                  variant="outline"
-                  onClick={() => setShowAdminControls(!showAdminControls)}
-                  className="rounded-full px-10 h-14 text-lg"
-              >
-                  {showAdminControls ? 'View Experience' : 'Manage Gallery'}
-              </Button>
-              {showAdminControls && (
-                 <Button
-                    variant="destructive"
-                    onClick={clearGallery}
-                    disabled={isUploading}
-                    className="rounded-full px-6 h-14 text-lg"
-                    title="Clear all duplicates"
-                >
-                    <Eraser className="mr-2 h-5 w-5" />
-                    Clear All
-                </Button>
-              )}
-            </div>
-            
             <input type="file" ref={inputFileRef} onChange={handleFileChange} className="hidden" accept="image/*" multiple />
           </div>
         </div>
@@ -291,91 +239,76 @@ export default function Gallery() {
             </Alert>
         )}
 
-        {showAdminControls ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
-                {firestoreImages.map((image) => (
-                    <div key={image.id} className="relative aspect-square rounded-2xl overflow-hidden border-2 bg-muted group shadow-lg">
-                        <Image src={image.imageUrl || image.url} alt="" fill className="object-cover" />
-                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center">
-                            <Button size="icon" variant="destructive" onClick={() => deleteImage(image.id)} className="rounded-full h-12 w-12">
-                                <Trash2 className="h-6 w-6" />
-                            </Button>
-                        </div>
-                    </div>
-                ))}
+        <div className="relative group max-w-7xl mx-auto overflow-hidden rounded-[2.5rem] shadow-2xl aspect-[16/9] md:aspect-[21/9] bg-black border-8 border-muted/10" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
+        {areImagesLoading ? (
+            <div className="w-full h-full flex flex-col items-center justify-center space-y-4">
+                <Loader2 className="h-16 w-16 animate-spin text-primary opacity-30" />
+                <p className="text-muted-foreground font-medium animate-pulse text-lg">Loading Gallery...</p>
+            </div>
+        ) : firestoreImages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground space-y-6 p-12 text-center">
+                <div className="bg-muted/10 p-10 rounded-full">
+                    <ImagePlus className="h-24 w-24 opacity-10" />
+                </div>
+                <div className="space-y-4">
+                    <p className="text-3xl font-bold text-foreground">Gallery is Ready</p>
+                    <p className="text-lg max-w-md mx-auto">Upload project photos or run the sync script to bring this cinematic experience to life.</p>
+                </div>
             </div>
         ) : (
-            <div className="relative group max-w-7xl mx-auto overflow-hidden rounded-[2.5rem] shadow-2xl aspect-[16/9] md:aspect-[21/9] bg-black border-8 border-muted/10" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
-            {areImagesLoading ? (
-                <div className="w-full h-full flex flex-col items-center justify-center space-y-4">
-                    <Loader2 className="h-16 w-16 animate-spin text-primary opacity-30" />
-                    <p className="text-muted-foreground font-medium animate-pulse text-lg">Loading Gallery...</p>
-                </div>
-            ) : firestoreImages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground space-y-6 p-12 text-center">
-                    <div className="bg-muted/10 p-10 rounded-full">
-                        <ImagePlus className="h-24 w-24 opacity-10" />
-                    </div>
-                    <div className="space-y-4">
-                        <p className="text-3xl font-bold text-foreground">Gallery is Freshly Cleaned</p>
-                        <p className="text-lg max-w-md mx-auto">To see your Storage images here, please run the <code className="bg-muted px-2 py-1 rounded">bash add_images.sh</code> script in your terminal.</p>
-                    </div>
-                </div>
-            ) : (
-                <>
-                {firestoreImages.map((image, index) => {
-                    const isActive = index === currentIndex;
-                    const isNext = index === (currentIndex + 1) % firestoreImages.length;
-                    
-                    if (!isActive && !isNext) return null;
+            <>
+            {firestoreImages.map((image, index) => {
+                const isActive = index === currentIndex;
+                const isNext = index === (currentIndex + 1) % firestoreImages.length;
+                
+                if (!isActive && !isNext) return null;
 
-                    return (
-                    <GalleryImage 
-                        key={image.id}
-                        image={image}
-                        isActive={isActive}
-                        isPriority={isActive}
-                    />
-                    );
-                })}
+                return (
+                <GalleryImage 
+                    key={image.id}
+                    image={image}
+                    isActive={isActive}
+                    isPriority={isActive}
+                />
+                );
+            })}
 
+            <button
+                onClick={prevSlide}
+                className="absolute left-10 top-1/2 -translate-y-1/2 z-20 p-6 rounded-full bg-black/30 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-2xl border border-white/10"
+                aria-label="Previous"
+            >
+                <ChevronLeft className="h-10 w-10" />
+            </button>
+            <button
+                onClick={nextSlide}
+                className="absolute right-10 top-1/2 -translate-y-1/2 z-20 p-6 rounded-full bg-black/30 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-2xl border border-white/10"
+                aria-label="Next"
+            >
+                <ChevronRight className="h-10 w-10" />
+            </button>
+
+            <div className="absolute bottom-10 right-10 z-20 flex gap-3">
+                {firestoreImages.map((_, index) => (
                 <button
-                    onClick={prevSlide}
-                    className="absolute left-10 top-1/2 -translate-y-1/2 z-20 p-6 rounded-full bg-black/30 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-2xl border border-white/10"
-                    aria-label="Previous"
-                >
-                    <ChevronLeft className="h-10 w-10" />
-                </button>
-                <button
-                    onClick={nextSlide}
-                    className="absolute right-10 top-1/2 -translate-y-1/2 z-20 p-6 rounded-full bg-black/30 hover:bg-primary text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-2xl border border-white/10"
-                    aria-label="Next"
-                >
-                    <ChevronRight className="h-10 w-10" />
-                </button>
-
-                <div className="absolute bottom-10 right-10 z-20 flex gap-3">
-                    {firestoreImages.map((_, index) => (
-                    <button
-                        key={index}
-                        onClick={() => setCurrentIndex(index)}
-                        className={cn(
-                        "h-2 transition-all duration-700 rounded-full",
-                        index === currentIndex ? "w-16 bg-primary shadow-[0_0_20px_rgba(var(--primary),0.8)]" : "w-4 bg-white/20 hover:bg-white/50"
-                        )}
-                    />
-                    ))}
-                </div>
-
-                <div className="absolute top-10 left-10 z-20">
-                    <div className="px-6 py-2 rounded-full bg-black/50 backdrop-blur-xl border border-white/10 text-white font-bold text-sm tracking-widest">
-                        {currentIndex + 1} / {firestoreImages.length}
-                    </div>
-                </div>
-                </>
-            )}
+                    key={index}
+                    onClick={() => setCurrentIndex(index)}
+                    className={cn(
+                    "h-2 transition-all duration-700 rounded-full",
+                    index === currentIndex ? "w-16 bg-primary shadow-[0_0_20px_rgba(var(--primary),0.8)]" : "w-4 bg-white/20 hover:bg-white/50"
+                    )}
+                />
+                ))}
             </div>
+
+            <div className="absolute top-10 left-10 z-20">
+                <div className="px-6 py-2 rounded-full bg-black/50 backdrop-blur-xl border border-white/10 text-white font-bold text-sm tracking-widest">
+                    {currentIndex + 1} / {firestoreImages.length}
+                </div>
+            </div>
+            </>
         )}
+        </div>
       </div>
     </section>
   );
