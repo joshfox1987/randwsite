@@ -1,8 +1,7 @@
-// src/firebase/config.ts
-
 /**
  * Firebase project configuration.
  * Explicitly exported for use in the app and server actions.
+ * Verified Project: studio-3066782500-b50dd
  */
 export const firebaseConfig = {
   projectId: "studio-3066782500-b50dd",

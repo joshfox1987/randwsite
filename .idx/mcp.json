@@ -7,18 +7,62 @@
         "firebase-tools@latest",
         "experimental:mcp",
         "--only",
-        "auth,firestore"
+        "auth,firestore,storage,hosting"
+      ]
+    },
+    "gcloud": {
+      "command": "gcloud",
+      "args": [
+        "beta",
+        "mcp",
+        "--only",
+        "compute,logging,resource-manager"
+      ]
+    },
+    "google_search": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-google-search"
+      ]
+    },
+    "fetch": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-fetch"
+      ]
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
       ],
-      "gcloud": {
-        "command": "gcloud",
-        "args": [
-          "beta",
-          "mcp",
-          "--only",
-          "auth,compute"
-        ]
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
       }
-
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
     }
   },
   "enabledTools": {
@@ -44,7 +88,35 @@
       "firestore_delete_document",
       "firestore_get_documents",
       "firestore_list_collections",
-      "firestore_query_collection"
+      "firestore_query_collection",
+      "firestore_create_document",
+      "firestore_update_document"
+    ],
+    "google_search": [
+        "google_search"
+    ],
+    "fetch": [
+        "fetch"
+    ],
+    "sequential-thinking": [
+        "sequential_thinking"
+    ],
+    "github": [
+      "list_repositories",
+      "get_file_contents",
+      "create_or_update_file"
+    ],
+    "puppeteer": [
+      "puppeteer_navigate",
+      "puppeteer_screenshot",
+      "puppeteer_click",
+      "puppeteer_fill",
+      "puppeteer_evaluate"
+    ],
+    "memory": [
+      "remember",
+      "recall",
+      "forget"
     ]
   }
 }
