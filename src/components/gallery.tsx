@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import Image from 'next/image';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle, Trash2, Eraser } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useStorage, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, serverTimestamp, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, addDoc, updateDoc, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -147,13 +148,17 @@ export default function Gallery() {
       const file = files[i];
       try {
         const compressedBlob = await compressImage(file);
-        const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-        const storageRef = ref(storage, `gallery_images/${fileName}`);
+        // Create a unique ID from the filename to prevent duplicates
+        const cleanName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const fileName = `${Date.now()}_${cleanName}`;
+        const docId = `upload_${cleanName}`;
         
+        const storageRef = ref(storage, `gallery_images/${fileName}`);
         await uploadBytes(storageRef, compressedBlob);
         const downloadURL = await getDownloadURL(storageRef);
 
-        const docRef = await addDoc(collection(firestore, 'gallery_images'), {
+        const docRef = doc(firestore, 'gallery_images', docId);
+        await setDoc(docRef, {
           imageUrl: downloadURL,
           url: downloadURL,
           title: 'New Transformation',
@@ -170,7 +175,7 @@ export default function Gallery() {
             const title = parts.length > 1 ? parts[0].trim() : 'Elite Restoration';
             const desc = parts.length > 1 ? parts.slice(1).join(':').trim() : result.description;
 
-            await updateDoc(doc(firestore, 'gallery_images', docRef.id), {
+            await updateDoc(docRef, {
               title: title.slice(0, 45),
               description: desc
             });
@@ -181,8 +186,8 @@ export default function Gallery() {
         console.error('Upload Error:', error);
         toast({ 
           variant: 'destructive', 
-          title: 'Permission Denied?', 
-          description: "Database is opening up. If this failed, please try once more."
+          title: 'Upload Failed', 
+          description: error.message || "Failed to upload image. Please check your connection."
         });
       }
     }
@@ -218,7 +223,9 @@ export default function Gallery() {
       const deletePromises = firestoreImages.map(img => deleteDoc(doc(firestore, 'gallery_images', img.id)));
       await Promise.all(deletePromises);
       toast({ title: 'Gallery Cleared', description: 'All records have been removed. You can now run the sync script.' });
+      setCurrentIndex(0);
     } catch (error) {
+      console.error('Clear Error:', error);
       toast({ variant: 'destructive', title: 'Error', description: 'Could not clear gallery. Check connection.' });
     } finally {
       setIsUploading(false);
@@ -311,7 +318,7 @@ export default function Gallery() {
                         <ImagePlus className="h-24 w-24 opacity-10" />
                     </div>
                     <div className="space-y-4">
-                        <p className="text-3xl font-bold text-foreground">Gallery Sync Required</p>
+                        <p className="text-3xl font-bold text-foreground">Gallery is Freshly Cleaned</p>
                         <p className="text-lg max-w-md mx-auto">To see your Storage images here, please run the <code className="bg-muted px-2 py-1 rounded">bash add_images.sh</code> script in your terminal.</p>
                     </div>
                 </div>
