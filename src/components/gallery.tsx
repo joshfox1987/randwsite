@@ -71,7 +71,7 @@ const GalleryImage = memo(({ image, isActive, isPriority }: { image: any, isActi
         onLoad={() => setIsLoaded(true)}
         priority={isPriority}
         sizes="100vw"
-        quality={95} // Matches images.qualities in next.config.js [25, 50, 75, 85, 95, 100]
+        quality={95}
       />
       
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
@@ -163,6 +163,7 @@ export default function Gallery() {
           order: startOrder + i
         });
 
+        // Trigger AI analysis for details and name
         describeImage(downloadURL).then(async (result) => {
           if (result.success && result.description) {
             const parts = result.description.split(':');
@@ -214,7 +215,6 @@ export default function Gallery() {
     if (!firestore || !window.confirm('WARNING: This will permanently remove ALL images from the gallery. Continue?')) return;
     setIsUploading(true);
     try {
-      // Loop through and delete each document. Since we have open rules, this will work.
       const deletePromises = firestoreImages.map(img => deleteDoc(doc(firestore, 'gallery_images', img.id)));
       await Promise.all(deletePromises);
       toast({ title: 'Gallery Cleared', description: 'All records have been removed. You can now run the sync script.' });
