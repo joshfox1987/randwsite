@@ -162,7 +162,7 @@ export default function Gallery() {
           uploadedAt: serverTimestamp(),
           uploaderUid: user?.uid || 'anonymous',
           order: startOrder + i
-        });
+        }, { merge: true });
 
         describeImage(downloadURL).then(async (result) => {
           if (result.success && result.description) {
