@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import Image from 'next/image';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Upload, Loader2, ChevronLeft, ChevronRight, ImagePlus, AlertCircle, Trash2, Eraser } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useStorage, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, serverTimestamp, addDoc, updateDoc, doc, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, updateDoc, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';

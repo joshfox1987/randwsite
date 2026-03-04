@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Configuration for R & W Property Solutions
