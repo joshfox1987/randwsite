@@ -41,11 +41,17 @@ export default function Hero() {
       <div className="container px-4 md:px-6">
         <div className="flex flex-col items-center space-y-6">
           <div className="space-y-4">
+            <Badge variant="secondary" className="border-white/20 bg-white/10 px-4 py-1 text-sm font-semibold uppercase tracking-[0.25em] text-white">
+              Licensed General Contractor
+            </Badge>
             <h1 className="font-headline text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl/none">
               WE ARE THE SOLUTION
             </h1>
             <p className="mx-auto max-w-[700px] text-primary-foreground/80 md:text-xl">
-              Your trusted partners for complete property restoration and efficient debris removal.
+              Trusted property restoration, renovations, repairs, and debris removal from a licensed general contractor.
+            </p>
+            <p className="mx-auto max-w-[760px] text-primary-foreground/70 md:text-lg">
+              Rob brings decades of hands-on experience to every project, and every bid is tailored to the specific home, damage, and finish you need.
             </p>
           </div>
 

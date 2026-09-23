@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Mail, Phone } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -41,6 +42,22 @@ export default function Contact() {
                 </Card>
             </a>
         </div>
+                <div className="mx-auto mt-12 max-w-3xl rounded-2xl border border-border/60 bg-muted/30 p-6 text-center">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+                        Trust and transparency
+                    </p>
+                    <p className="mt-3 text-sm text-muted-foreground md:text-base">
+                        R&amp;W Property Solutions is operated by a licensed general contractor. For privacy details or to request deletion of submitted contact data, use the public pages below.
+                    </p>
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-sm font-semibold">
+                        <Link href="/privacy" className="text-primary underline-offset-4 hover:underline">
+                            Privacy Policy
+                        </Link>
+                        <Link href="/data-deletion" className="text-primary underline-offset-4 hover:underline">
+                            Data Deletion
+                        </Link>
+                    </div>
+                </div>
       </div>
     </section>
   );

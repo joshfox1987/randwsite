@@ -9,7 +9,7 @@ import { GoogleAnalytics } from '@/components/GoogleAnalytics';
 
 export const metadata: Metadata = {
   title: 'R & W Property Solutions Hub',
-  description: 'Your trusted partners for complete property restoration and efficient debris removal.',
+  description: 'Licensed general contractor services for property restoration, renovations, repairs, and debris removal.',
 };
 
 export default function RootLayout({

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Phone } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -7,12 +8,17 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-20 items-center">
         <div className="mr-auto flex items-center">
-          <a href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-3">
             <Logo className="h-12 w-12" />
-            <span className="font-headline text-lg font-bold text-foreground">
-              Property Solutions
-            </span>
-          </a>
+            <div className="flex flex-col leading-tight">
+              <span className="font-headline text-lg font-bold text-foreground">
+                R &amp; W Property Solutions
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                Licensed General Contractor
+              </span>
+            </div>
+          </Link>
         </div>
         <nav className="flex items-center space-x-2 md:space-x-4">
           <a
